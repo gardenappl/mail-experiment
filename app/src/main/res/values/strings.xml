@@ -13,4 +13,6 @@
     <string name="imap_port">IMAP port</string>
     <string name="smtp_address">SMTP address</string>
     <string name="smtp_port">SMTP port</string>
+
+    <string name="compose">Compose...</string>
 </resources>

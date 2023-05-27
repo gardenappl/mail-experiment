@@ -1,5 +1,6 @@
 package garden.appl.mail.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -12,6 +13,8 @@ import androidx.fragment.app.Fragment
 import garden.appl.mail.MailApp
 import garden.appl.mail.databinding.FragmentLoginConfigBinding
 import garden.appl.mail.mail.MailAccount
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.MainScope
 
 private const val LOGGING_TAG = "LoginConfigFrag"
 
@@ -47,6 +50,7 @@ class LoginConfigFragment : Fragment() {
                 smtpPort = Integer.parseInt(binding.textSmtpPort.text.toString())
             ).setAsDefault(requireContext())
             Log.d(LOGGING_TAG, binding.textImapPort.text.toString())
+            startActivity(Intent(requireContext(), MailViewActivity::class.java))
         }
         return binding.root
     }

@@ -15,12 +15,12 @@ private const val SMTP_ADDRESS = "smtpAddr"
 private const val SMTP_PORT = "smtpPort"
 
 data class MailAccount(
-    private val originalAddress: String,
-    private val password: String,
-    private val imapAddress: String,
-    private val imapPort: Int,
-    private val smtpAddress: String,
-    private val smtpPort: Int
+    val originalAddress: String,
+    val password: String,
+    val imapAddress: String,
+    val imapPort: Int,
+    val smtpAddress: String,
+    val smtpPort: Int
 ) {
     val canonAddress: String
 
