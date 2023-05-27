@@ -9,9 +9,9 @@
     <string name="login_email_invalid">This email address is invalid</string>
 
     <string name="extra_config_required">Additional configuration is required:</string>
-    <string name="imap_address">IMAP address</string>
+    <string name="imap_address">IMAP host</string>
     <string name="imap_port">IMAP port</string>
-    <string name="smtp_address">SMTP address</string>
+    <string name="smtp_address">SMTP host (SSL)</string>
     <string name="smtp_port">SMTP port</string>
 
     <string name="compose">Compose...</string>

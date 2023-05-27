@@ -2,9 +2,26 @@ package garden.appl.mail.mail
 
 import android.content.Context
 import android.icu.text.IDNA
+import android.util.Log
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
+import jakarta.mail.Address
+import jakarta.mail.Folder
+import jakarta.mail.Message
+import jakarta.mail.MessagingException
+import jakarta.mail.Session
+import jakarta.mail.internet.InternetAddress
+import jakarta.mail.internet.MimeMessage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.eclipse.angus.mail.imap.IMAPSSLStore
+import org.eclipse.angus.mail.imap.IMAPStore
+import java.lang.Exception
 import java.lang.StringBuilder
+import java.util.Date
+import java.util.Properties
+import kotlin.random.Random
 
 private const val ORIGINAL_ADDRESS = "origAddress"
 private const val CANONICAL_ADDRESS = "canonAddress"
@@ -47,6 +64,47 @@ data class MailAccount(
             putInt(IMAP_PORT, imapPort)
             putString(SMTP_ADDRESS, smtpAddress)
             putInt(SMTP_PORT, smtpPort)
+        }
+    }
+
+    suspend fun sendTo(msg: MimeMessage, to: Array<Address>) {
+        val props = Properties()
+        props["mail.smtps.host"] = smtpAddress
+        props["mail.smtps.port"] = smtpPort
+
+        val session = Session.getInstance(props)
+        session.debug = true
+        // create a message
+        msg.setFrom(InternetAddress(originalAddress))
+        msg.setRecipients(Message.RecipientType.TO, to)
+        msg.sentDate = Date()
+
+        withContext(Dispatchers.IO) {
+            try {
+                session.getTransport("smtps").use { transport ->
+                    transport.connect(originalAddress, password)
+                    transport.sendMessage(msg, to)
+                }
+            } catch (mex: MessagingException) {
+                var ex: Exception? = mex
+                do {
+                    ex?.printStackTrace()
+                    ex = (ex as? MessagingException)?.nextException
+                } while (ex != null)
+            }
+        }
+    }
+
+    suspend fun connectToStore(): IMAPStore {
+        val props = Properties()
+        props["mail.imaps.host"] = imapAddress
+        props["mail.imaps.port"] = imapPort
+
+        val session = Session.getInstance(props)
+        return withContext(Dispatchers.IO) {
+            val store = session.getStore("imaps") as IMAPStore
+            store.connect(originalAddress, password)
+            return@withContext store
         }
     }
 
