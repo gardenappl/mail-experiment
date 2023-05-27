@@ -4,7 +4,5 @@ import android.app.Application
 import garden.appl.mail.mail.MailAccount
 
 class MailApp : Application() {
-    companion object {
-        lateinit var account: MailAccount
-    }
+    val account get() = MailAccount.getDefault(this)
 }
