@@ -1,4 +1,4 @@
-package garden.gardenapple.mail
+package garden.appl.mail
 
 import org.junit.Test
 

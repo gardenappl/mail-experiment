@@ -1,7 +1,7 @@
-package garden.gardenapple.mail
+package garden.appl.mail
 
 import android.app.Application
-import garden.gardenapple.mail.mail.MailAccount
+import garden.appl.mail.mail.MailAccount
 
 class MailApp : Application() {
     companion object {

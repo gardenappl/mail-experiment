@@ -1,13 +1,13 @@
-package garden.gardenapple.mail.ui
+package garden.appl.mail.ui
 
 import android.os.Bundle
 import android.util.Patterns
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.addTextChangedListener
-import garden.gardenapple.mail.MailApp
-import garden.gardenapple.mail.R
-import garden.gardenapple.mail.databinding.LoginActivityBinding
-import garden.gardenapple.mail.mail.MailAccount
+import garden.appl.mail.MailApp
+import garden.appl.mail.R
+import garden.appl.mail.databinding.LoginActivityBinding
+import garden.appl.mail.mail.MailAccount
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: LoginActivityBinding

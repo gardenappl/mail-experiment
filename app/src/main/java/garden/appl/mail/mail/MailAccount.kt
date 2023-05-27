@@ -1,4 +1,4 @@
-package garden.gardenapple.mail.mail
+package garden.appl.mail.mail
 
 import android.icu.text.IDNA
 import java.lang.StringBuilder
