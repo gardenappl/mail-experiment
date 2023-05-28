@@ -16,5 +16,6 @@ class StartActivity : AppCompatActivity() {
                 .putExtra(MailViewActivity.EXTRA_FOLDER_FULL_NAME, "INBOX"))
         }
         overridePendingTransition(0, 0)
+        finish()
     }
 }
