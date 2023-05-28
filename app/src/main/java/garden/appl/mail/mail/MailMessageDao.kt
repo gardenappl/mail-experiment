@@ -7,7 +7,9 @@ import androidx.room.Query
 import androidx.room.Transaction
 import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.mail.MailMessage.Companion.DATE
+import garden.appl.mail.mail.MailMessage.Companion.EFFECTIVE_DATE
 import garden.appl.mail.mail.MailMessage.Companion.FOLDER
+import garden.appl.mail.mail.MailMessage.Companion.FROM
 import garden.appl.mail.mail.MailMessage.Companion.LOCAL_ID
 import garden.appl.mail.mail.MailMessage.Companion.MESSAGE_ID
 import jakarta.mail.Folder
@@ -25,6 +27,9 @@ abstract class MailMessageDao {
 
     @Query("SELECT * FROM $TABLE_NAME WHERE $LOCAL_ID = :localId")
     abstract suspend fun getMessage(localId: Int): MailMessage?
+
+    @Query("SELECT * FROM $TABLE_NAME WHERE \"$FROM\" LIKE '%<' || :from || '>%' ORDER BY $EFFECTIVE_DATE DESC LIMIT 1")
+    abstract fun getMostRecentMessageFrom(from: String): MailMessage?
 
     @Query("DELETE FROM $TABLE_NAME WHERE $MESSAGE_ID = :messageID")
     abstract suspend fun deleteMessageID(messageID: String)

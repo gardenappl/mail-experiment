@@ -79,7 +79,7 @@ data class MailAccount(
         }
     }
 
-    suspend fun sendTo(msg: MimeMessage, to: Array<Address>) {
+    suspend fun send(msg: MimeMessage, to: Array<InternetAddress>) {
         // create a message
         msg.setFrom(InternetAddress(originalAddress))
         msg.setRecipients(Message.RecipientType.TO, to)

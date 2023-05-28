@@ -32,7 +32,13 @@
         </activity>
         <activity
             android:name=".ui.MessageReadActivity"
-            android:theme="@style/Theme.Mail"/>
+            android:theme="@style/Theme.Mail" />
+        <activity
+            android:name=".ui.MessageWriteActivity"
+            android:theme="@style/Theme.Mail" />
+        <activity android:name=".ui.SelectRecipientActivity"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.Mail" />
     </application>
 
 </manifest>

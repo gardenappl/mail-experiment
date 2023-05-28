@@ -16,7 +16,7 @@
 
     <string name="compose">Compose…</string>
     <string name="select_recipient">Select recipient</string>
-    <string name="encryption_available">Private messaging is available for %s.</string>
+    <string name="encryption_available">Private messaging is available for %s!</string>
     <string name="button_write">Write message</string>
     <string name="button_write_encrypted">Write private message</string>
 

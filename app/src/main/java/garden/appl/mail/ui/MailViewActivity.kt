@@ -45,6 +45,7 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
         setContentView(binding.root)
 
         binding.composeButton.setOnClickListener {
+            startActivity(Intent(this, SelectRecipientActivity::class.java))
         }
 
         val adapter = MailViewAdapter(this)
