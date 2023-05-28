@@ -5,7 +5,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.Date
 
-@Entity
+@Entity(tableName = MailMessage.TABLE_NAME)
 data class MailMessage(
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo(name = LOCAL_ID)
@@ -45,6 +45,8 @@ data class MailMessage(
     val blob: ByteArray
 ) {
     companion object {
+        const val TABLE_NAME = "msgs"
+
         const val LOCAL_ID = "id"
         const val FOLDER = "folder"
         const val MESSAGE_ID = "message_id"

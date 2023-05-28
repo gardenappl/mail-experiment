@@ -3,8 +3,14 @@ package garden.appl.mail.ui
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.ViewModelInitializer
+import androidx.recyclerview.widget.LinearLayoutManager
+import garden.appl.mail.MailDatabase
+import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.databinding.ActivityMailViewBinding
 import garden.appl.mail.mail.MailAccount
+import garden.appl.mail.mail.MailMessageViewModel
 import jakarta.mail.Folder
 import jakarta.mail.MessagingException
 import jakarta.mail.internet.MimeMessage
@@ -25,6 +31,12 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
     private lateinit var _binding: ActivityMailViewBinding
     private val binding get() = _binding
 
+    private lateinit var messagesViewModel: MailMessageViewModel
+
+    companion object {
+        const val EXTRA_FOLDER_FULL_NAME = "folder"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -32,21 +44,49 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
         setContentView(binding.root)
 
         binding.composeButton.setOnClickListener {
-            val account = MailAccount.getDefault(this)!!
+        }
 
-            try {
-                launch(Dispatchers.IO) {
-                    account.connectToStore().use { store ->
-                        val folder = store.defaultFolder
-                        debugFolder(folder)
+        val adapter = MailViewAdapter(this)
+        binding.messagesList.adapter = adapter
+        binding.messagesList.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+
+        launch(Dispatchers.IO) {
+            val folder = MailDatabase.getDatabase(this@MailViewActivity)
+                .folderDao.getFolder(intent.getStringExtra(EXTRA_FOLDER_FULL_NAME)!!)!!
+
+            this@MailViewActivity.supportActionBar?.title = folder.name
+
+            messagesViewModel = ViewModelProvider(this@MailViewActivity, ViewModelProvider.Factory.from(
+                ViewModelInitializer(MailMessageViewModel::class.java) {
+                    return@ViewModelInitializer MailMessageViewModel(this@MailViewActivity.application, folder)
+                }
+            ))[MailMessageViewModel::class.java]
+            launch(Dispatchers.Main) {
+                messagesViewModel.messages.observe(this@MailViewActivity) { messages ->
+                    messages?.let {
+                        adapter.messagesList = messages
                     }
                 }
-            } catch (mex: MessagingException) {
-                var ex: Exception? = mex
-                do {
-                    ex?.printStackTrace()
-                    ex = (ex as? MessagingException)?.nextException
-                } while (ex != null)
+            }
+        }
+
+        binding.swipe.setOnRefreshListener {
+            launch(Dispatchers.IO) {
+                val account = MailAccount.getCurrent(this@MailViewActivity)!!
+
+                try {
+                    account.connectToStore().use { store ->
+                        MailTypeConverters.toDatabase(store.getFolder("INBOX"))
+                            .refreshDatabaseMessages(this@MailViewActivity, account)
+                    }
+                } catch (mex: MessagingException) {
+                    var ex: Exception? = mex
+                    do {
+                        ex?.printStackTrace()
+                        ex = (ex as? MessagingException)?.nextException
+                    } while (ex != null)
+                }
+                binding.swipe.isRefreshing = false
             }
         }
     }

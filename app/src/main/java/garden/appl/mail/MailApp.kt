@@ -4,5 +4,5 @@ import android.app.Application
 import garden.appl.mail.mail.MailAccount
 
 class MailApp : Application() {
-    val account get() = MailAccount.getDefault(this)
+    val account get() = MailAccount.getCurrent(this)
 }

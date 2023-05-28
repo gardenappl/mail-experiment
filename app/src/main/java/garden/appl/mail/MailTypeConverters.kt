@@ -31,8 +31,8 @@ class MailTypeConverters {
                 effectiveDate = Date().let { now ->
                     if (message.sentDate.after(now)) now else message.sentDate
                 }, //TODO: assert: one valid header
-                autocryptHeader = message.getHeader("Autocrypt").first(),
-                inReplyTo = message.getHeader("In-Reply-To").first(),
+                autocryptHeader = message.getHeader("Autocrypt")?.first(),
+                inReplyTo = message.getHeader("In-Reply-To")?.first(),
                 blob = messageByteArrayOutputStream.also { stream ->
                     stream.reset()
                     message.writeTo(stream)

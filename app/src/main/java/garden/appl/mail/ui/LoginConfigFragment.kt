@@ -4,17 +4,12 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
-import garden.appl.mail.MailApp
 import garden.appl.mail.databinding.FragmentLoginConfigBinding
 import garden.appl.mail.mail.MailAccount
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.MainScope
 
 private const val LOGGING_TAG = "LoginConfigFrag"
 
@@ -48,9 +43,10 @@ class LoginConfigFragment : Fragment() {
                 imapPort = Integer.parseInt(binding.textImapPort.text.toString()),
                 smtpAddress = binding.textSmtpAddress.text.toString(),
                 smtpPort = Integer.parseInt(binding.textSmtpPort.text.toString())
-            ).setAsDefault(requireContext())
-            Log.d(LOGGING_TAG, binding.textImapPort.text.toString())
-            startActivity(Intent(requireContext(), MailViewActivity::class.java))
+            ).setAsCurrent(requireContext())
+
+            startActivity(Intent(requireContext(), MailViewActivity::class.java)
+                .putExtra(MailViewActivity.EXTRA_FOLDER_FULL_NAME, "INBOX"))
         }
         return binding.root
     }

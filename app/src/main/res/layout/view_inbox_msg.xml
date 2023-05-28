@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="10dp"
@@ -12,7 +14,7 @@
         android:paddingHorizontal="5dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        android:text="Dec 12, 4:12 AM"
+        tools:text="Dec 12, 4:12 AM"
         />
 
     <TextView
@@ -24,7 +26,7 @@
         app:layout_constraintRight_toLeftOf="@id/date"
         android:maxLines="1"
         android:ellipsize="end"
-        android:text="Person <person@example.com>, Person Two <person2@example.com>, Person Three <person3@example.com>"
+        tools:text="Person &lt;person@example.com&gt;, Person Two &lt;person2@example.com&gt;"
         android:textSize="14sp"
         />
 
@@ -36,7 +38,8 @@
         app:layout_constraintLeft_toLeftOf="parent"
         android:ellipsize="middle"
         android:maxLines="1"
-        android:text="Subject, subject, subject, on and on and on and on and on and on"
+        tools:text="Subject, subject, subject, on and on and on and on and on and on"
+        android:textColor="@color/colorForeground"
         android:textSize="16sp"
         android:textStyle="bold"
         />

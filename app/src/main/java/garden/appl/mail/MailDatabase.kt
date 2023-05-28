@@ -8,7 +8,9 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import garden.appl.mail.mail.MailFolder
+import garden.appl.mail.mail.MailFolderDao
 import garden.appl.mail.mail.MailMessage
+import garden.appl.mail.mail.MailMessageDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -21,6 +23,10 @@ import kotlinx.coroutines.withContext
 )
 @TypeConverters(MailTypeConverters::class)
 abstract class MailDatabase : RoomDatabase() {
+
+    abstract val messageDao: MailMessageDao
+    abstract val folderDao: MailFolderDao
+
     companion object {
         private const val LOGGING_TAG = "DatabaseSetup"
 
@@ -42,6 +48,8 @@ abstract class MailDatabase : RoomDatabase() {
 //                for (migration in Migrations)
 //                    addMigrations(migration)
                 build()
+            }.also { db ->
+//                db.folderDao.insert(MailFolder("INBOX", "INBOX", "", 0, 0, false))
             }
         }
     }

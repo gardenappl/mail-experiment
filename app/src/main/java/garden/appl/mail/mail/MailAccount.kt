@@ -2,26 +2,21 @@ package garden.appl.mail.mail
 
 import android.content.Context
 import android.icu.text.IDNA
-import android.util.Log
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import jakarta.mail.Address
-import jakarta.mail.Folder
 import jakarta.mail.Message
 import jakarta.mail.MessagingException
 import jakarta.mail.Session
 import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.eclipse.angus.mail.imap.IMAPSSLStore
 import org.eclipse.angus.mail.imap.IMAPStore
 import java.lang.Exception
 import java.lang.StringBuilder
 import java.util.Date
 import java.util.Properties
-import kotlin.random.Random
 
 private const val ORIGINAL_ADDRESS = "origAddress"
 private const val CANONICAL_ADDRESS = "canonAddress"
@@ -41,6 +36,23 @@ data class MailAccount(
 ) {
     val canonAddress: String
 
+    private lateinit var _session: Session
+
+    val session: Session get() {
+        return if (this::_session.isInitialized) {
+            _session
+        } else {
+            val props = Properties()
+            props["mail.smtps.host"] = smtpAddress
+            props["mail.smtps.port"] = smtpPort
+
+            val session = Session.getInstance(props)
+            session.debug = true
+            _session = session
+            _session
+        }
+    }
+
     init {
         // Canonicalize according to Autocrypt Level 1
         val (addressLocal, addressHost) = originalAddress.split('@')
@@ -54,7 +66,7 @@ data class MailAccount(
         canonAddress = addressLocal.lowercase() + '@' + stringBuilder
     }
 
-    fun setAsDefault(context: Context) {
+    fun setAsCurrent(context: Context) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         prefs.edit {
             putString(ORIGINAL_ADDRESS, originalAddress)
@@ -68,12 +80,6 @@ data class MailAccount(
     }
 
     suspend fun sendTo(msg: MimeMessage, to: Array<Address>) {
-        val props = Properties()
-        props["mail.smtps.host"] = smtpAddress
-        props["mail.smtps.port"] = smtpPort
-
-        val session = Session.getInstance(props)
-        session.debug = true
         // create a message
         msg.setFrom(InternetAddress(originalAddress))
         msg.setRecipients(Message.RecipientType.TO, to)
@@ -109,7 +115,7 @@ data class MailAccount(
     }
 
     companion object {
-        fun getDefault(context: Context): MailAccount? {
+        fun getCurrent(context: Context): MailAccount? {
             val prefs = PreferenceManager.getDefaultSharedPreferences(context)
             if (prefs.getString(ORIGINAL_ADDRESS, "").isNullOrBlank())
                 return null
