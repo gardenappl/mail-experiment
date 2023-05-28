@@ -5,19 +5,24 @@ import garden.appl.mail.mail.MailFolder
 import garden.appl.mail.mail.MailMessage
 import jakarta.mail.Folder
 import jakarta.mail.Message
+import jakarta.mail.Session
 import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.Date
 
 class MailTypeConverters {
     companion object {
+        private val messageByteArrayOutputStream = ByteArrayOutputStream(MailMessage.BLOB_SIZE)
+
         @TypeConverter
         @JvmStatic
         fun toDatabase(message: MimeMessage): MailMessage {
             return MailMessage(
                 localId = 0,
                 messageID = message.messageID,
+                folderFullName = message.folder.fullName,
                 from = InternetAddress.toString(message.from),
                 to = InternetAddress.toString(message.getRecipients(Message.RecipientType.TO)),
                 subject = message.subject,
@@ -28,10 +33,16 @@ class MailTypeConverters {
                 }, //TODO: assert: one valid header
                 autocryptHeader = message.getHeader("Autocrypt").first(),
                 inReplyTo = message.getHeader("In-Reply-To").first(),
-                blob = ByteArrayOutputStream(MailMessage.BLOB_SIZE).also { stream ->
+                blob = messageByteArrayOutputStream.also { stream ->
+                    stream.reset()
                     message.writeTo(stream)
                 }.toByteArray()
             )
+        }
+
+        fun fromDatabase(message: MailMessage, session: Session): MimeMessage {
+            val byteStream = ByteArrayInputStream(message.blob)
+            return MimeMessage(session, byteStream)
         }
 
         @TypeConverter

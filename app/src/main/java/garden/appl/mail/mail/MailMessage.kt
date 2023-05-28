@@ -11,6 +11,9 @@ data class MailMessage(
     @ColumnInfo(name = LOCAL_ID)
     val localId: Int,
 
+    @ColumnInfo(name = FOLDER)
+    val folderFullName: String,
+
     @ColumnInfo(name = MESSAGE_ID)
     val messageID: String?,
 
@@ -43,6 +46,7 @@ data class MailMessage(
 ) {
     companion object {
         const val LOCAL_ID = "id"
+        const val FOLDER = "folder"
         const val MESSAGE_ID = "message_id"
         const val FROM = "from"
         const val TO = "to"
@@ -64,6 +68,7 @@ data class MailMessage(
         other as MailMessage
 
         if (localId != other.localId) return false
+        if (folderFullName != other.folderFullName) return false
         if (messageID != other.messageID) return false
         if (from != other.from) return false
         if (to != other.to) return false
@@ -80,6 +85,7 @@ data class MailMessage(
     override fun hashCode(): Int {
         var result = localId
         result = 31 * result + (messageID?.hashCode() ?: 0)
+        result = 31 * result + folderFullName.hashCode()
         result = 31 * result + from.hashCode()
         result = 31 * result + to.hashCode()
         result = 31 * result + contentType.hashCode()
