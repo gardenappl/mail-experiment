@@ -15,7 +15,6 @@
         <activity
             android:name="garden.appl.mail.ui.StartActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.Mail.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -31,6 +30,9 @@
             android:name="garden.appl.mail.ui.MailViewActivity"
             android:theme="@style/Theme.Mail">
         </activity>
+        <activity
+            android:name=".ui.MessageReadActivity"
+            android:theme="@style/Theme.Mail"/>
     </application>
 
 </manifest>

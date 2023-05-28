@@ -58,7 +58,10 @@ class MailViewAdapter internal constructor(
             DateUtils.FORMAT_ABBREV_RELATIVE
         )
         binding.subject.text = message.subject
-        binding.root.setOnClickListener {  }
+        binding.root.setOnClickListener {
+            context.startActivity(Intent(context, MessageReadActivity::class.java)
+                .putExtra(MessageReadActivity.EXTRA_MESSAGE_LOCAL_ID, message.localId))
+        }
     }
 
     override fun getItemCount(): Int = messagesList.size
