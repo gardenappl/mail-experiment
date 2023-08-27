@@ -2,9 +2,8 @@ package garden.appl.mail.crypt
 
 import android.util.Base64
 import android.util.Log
-import org.bouncycastle.openpgp.PGPPublicKey
+import org.bouncycastle.openpgp.PGPPublicKeyRing
 import org.pgpainless.PGPainless
-import java.util.regex.Pattern
 
 class AutocryptHeader(val headerString: String) {
     companion object {
@@ -13,7 +12,7 @@ class AutocryptHeader(val headerString: String) {
 
     lateinit var addr: String
         private set
-    lateinit var key: PGPPublicKey
+    lateinit var keyRing: PGPPublicKeyRing
         private set
 
     init {
@@ -26,11 +25,11 @@ class AutocryptHeader(val headerString: String) {
                 "addr" -> addr = value
                 "keydata" -> {
                     val keyData = Base64.decode(value, Base64.DEFAULT)
-                    val keyRing = PGPainless.readKeyRing().keyRing(keyData)
+                    val keyRing = PGPainless.readKeyRing().publicKeyRing(keyData)
                     if (keyRing == null) {
                         Log.d(LOGGING_TAG, "failed to parse keydata as ring")
                     } else {
-                        this.key = keyRing.publicKey
+                        this.keyRing = keyRing
                     }
                 }
             }

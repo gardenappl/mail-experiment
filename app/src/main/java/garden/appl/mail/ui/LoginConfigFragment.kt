@@ -52,7 +52,8 @@ class LoginConfigFragment : Fragment(), CoroutineScope by MainScope() {
                 imapAddress = binding.textImapAddress.text.toString(),
                 imapPort = Integer.parseInt(binding.textImapPort.text.toString()),
                 smtpAddress = binding.textSmtpAddress.text.toString(),
-                smtpPort = Integer.parseInt(binding.textSmtpPort.text.toString())
+                smtpPort = Integer.parseInt(binding.textSmtpPort.text.toString()),
+                keyRing = MailAccount.keyRing(loginActivity.address)
             )
             account.setAsCurrent(requireContext())
             launch(Dispatchers.IO) {

@@ -4,7 +4,6 @@ import android.content.Context
 import android.icu.text.IDNA
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
-import jakarta.mail.Address
 import jakarta.mail.Message
 import jakarta.mail.MessagingException
 import jakarta.mail.Session
@@ -12,7 +11,9 @@ import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.bouncycastle.openpgp.PGPSecretKeyRing
 import org.eclipse.angus.mail.imap.IMAPStore
+import org.pgpainless.PGPainless
 import java.lang.Exception
 import java.lang.StringBuilder
 import java.util.Date
@@ -25,6 +26,7 @@ private const val IMAP_ADDRESS = "imapAddr"
 private const val IMAP_PORT = "imapPort"
 private const val SMTP_ADDRESS = "smtpAddr"
 private const val SMTP_PORT = "smtpPort"
+private const val KEYRING_ARMORED = "keyringArmored"
 
 data class MailAccount(
     val originalAddress: String,
@@ -32,7 +34,8 @@ data class MailAccount(
     val imapAddress: String,
     val imapPort: Int,
     val smtpAddress: String,
-    val smtpPort: Int
+    val smtpPort: Int,
+    val keyRing: PGPSecretKeyRing
 ) {
     val canonAddress: String
 
@@ -117,16 +120,28 @@ data class MailAccount(
     companion object {
         fun getCurrent(context: Context): MailAccount? {
             val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-            if (prefs.getString(ORIGINAL_ADDRESS, "").isNullOrBlank())
+            val originalAddress = prefs.getString(ORIGINAL_ADDRESS, "")
+            if (originalAddress.isNullOrBlank())
                 return null
             return MailAccount(
-                originalAddress = prefs.getString(ORIGINAL_ADDRESS, "")!!,
+                originalAddress = originalAddress,
                 password = prefs.getString(PASSWORD, "")!!,
                 imapAddress = prefs.getString(IMAP_ADDRESS, "")!!,
                 imapPort = prefs.getInt(IMAP_PORT, 0),
                 smtpAddress = prefs.getString(SMTP_ADDRESS, "")!!,
-                smtpPort = prefs.getInt(SMTP_PORT, 0)
+                smtpPort = prefs.getInt(SMTP_PORT, 0),
+                keyRing = prefs.getString(KEYRING_ARMORED, "")?.let { keyringString ->
+                    PGPainless.readKeyRing().secretKeyRing(keyringString)
+                } ?: keyRing(originalAddress).also { newRing ->
+                    prefs.edit {
+                        putString(KEYRING_ARMORED, PGPainless.asciiArmor(newRing))
+                    }
+                }
             )
+        }
+
+        fun keyRing(address: String): PGPSecretKeyRing {
+            return PGPainless.generateKeyRing().modernKeyRing(address)
         }
     }
 }

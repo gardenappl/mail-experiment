@@ -22,7 +22,11 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.bouncycastle.bcpg.ArmoredInputStream
 import org.eclipse.angus.mail.imap.IMAPFolder
+import org.pgpainless.PGPainless
+import org.pgpainless.util.ArmoredInputStreamFactory
+import org.pgpainless.util.ArmoredOutputStreamFactory
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.lang.Exception
@@ -82,6 +86,13 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
                 withContext(Dispatchers.IO) {
                     val account = MailAccount.getCurrent(this@MailViewActivity)!!
 
+                    val bytes = ByteArrayOutputStream().use { out ->
+                        ArmoredOutputStreamFactory.get(out).use { armoredOut ->
+                            account.keyRing.publicKey.encode(armoredOut)
+                        }
+                        out.toByteArray()
+                    }
+                    Log.d(LOGGING_TAG, String(bytes))
                     try {
                         account.connectToStore().use { store ->
                             MailTypeConverters.toDatabase(store.getFolder("INBOX"))
