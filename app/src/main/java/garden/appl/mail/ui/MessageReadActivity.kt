@@ -2,10 +2,12 @@ package garden.appl.mail.ui
 
 import android.os.Bundle
 import android.text.format.DateUtils
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import garden.appl.mail.MailDatabase
 import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.R
+import garden.appl.mail.crypt.AutocryptHeader
 import garden.appl.mail.databinding.FragmentMessageBinding
 import garden.appl.mail.mail.MailAccount
 import jakarta.mail.internet.MimeMultipart
@@ -18,6 +20,8 @@ import kotlinx.coroutines.launch
 class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     companion object {
         const val EXTRA_MESSAGE_LOCAL_ID = "message_local_id"
+
+        const val LOGGING_TAG = "MessageReadActivity"
     }
 
     private lateinit var _binding: FragmentMessageBinding
@@ -38,6 +42,12 @@ class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         launch(Dispatchers.IO) {
             val message = MailDatabase.getDatabase(this@MessageReadActivity)
                 .messageDao.getMessage(localID)!!
+            Log.d(LOGGING_TAG, "autocrypt: ${message.autocryptHeader}")
+            message.autocryptHeader?.run {
+                val header = AutocryptHeader(this)
+                Log.d(LOGGING_TAG, header.key.userIDs.next())
+            }
+
 
             val session = MailAccount.getCurrent(this@MessageReadActivity)!!.session
             val mimeMessage = MailTypeConverters.fromDatabase(message, session)

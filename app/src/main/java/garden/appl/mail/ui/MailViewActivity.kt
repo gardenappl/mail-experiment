@@ -11,6 +11,7 @@ import garden.appl.mail.MailDatabase
 import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.databinding.ActivityMailViewBinding
 import garden.appl.mail.mail.MailAccount
+import garden.appl.mail.mail.MailFolder
 import garden.appl.mail.mail.MailMessageViewModel
 import jakarta.mail.Folder
 import jakarta.mail.MessagingException
@@ -20,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.eclipse.angus.mail.imap.IMAPFolder
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -52,9 +54,12 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
         binding.messagesList.adapter = adapter
         binding.messagesList.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
 
-        launch(Dispatchers.IO) {
-            val folder = MailDatabase.getDatabase(this@MailViewActivity)
-                .folderDao.getFolder(intent.getStringExtra(EXTRA_FOLDER_FULL_NAME)!!)!!
+        launch {
+            val folder = withContext(Dispatchers.IO) {
+                MailDatabase.getDatabase(this@MailViewActivity)
+                    .folderDao.getFolder(intent.getStringExtra(EXTRA_FOLDER_FULL_NAME)!!)
+                    ?: createFolder()
+            }
 
             this@MailViewActivity.supportActionBar?.title = folder.name
 
@@ -73,23 +78,38 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
         }
 
         binding.swipe.setOnRefreshListener {
-            launch(Dispatchers.IO) {
-                val account = MailAccount.getCurrent(this@MailViewActivity)!!
+            launch {
+                withContext(Dispatchers.IO) {
+                    val account = MailAccount.getCurrent(this@MailViewActivity)!!
 
-                try {
-                    account.connectToStore().use { store ->
-                        MailTypeConverters.toDatabase(store.getFolder("INBOX"))
-                            .refreshDatabaseMessages(this@MailViewActivity, account)
+                    try {
+                        account.connectToStore().use { store ->
+                            MailTypeConverters.toDatabase(store.getFolder("INBOX"))
+                                .refreshDatabaseMessages(this@MailViewActivity, account)
+                        }
+                    } catch (mex: MessagingException) {
+                        var ex: Exception? = mex
+                        do {
+                            ex?.printStackTrace()
+                            ex = (ex as? MessagingException)?.nextException
+                        } while (ex != null)
                     }
-                } catch (mex: MessagingException) {
-                    var ex: Exception? = mex
-                    do {
-                        ex?.printStackTrace()
-                        ex = (ex as? MessagingException)?.nextException
-                    } while (ex != null)
                 }
                 binding.swipe.isRefreshing = false
             }
+        }
+    }
+
+    private suspend fun createFolder(): MailFolder {
+        Log.d(LOGGING_TAG, "Creating folder")
+        val folderName = intent.getStringExtra(EXTRA_FOLDER_FULL_NAME)!!
+
+        val account = MailAccount.getCurrent(this@MailViewActivity)!!
+
+        account.connectToStore().use { store ->
+            val folder = MailTypeConverters.toDatabase(store.getFolder(folderName))
+            MailDatabase.getDatabase(this).folderDao.insert(folder)
+            return folder
         }
     }
 

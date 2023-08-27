@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "garden.appl.mail"
-    compileSdk = Build.Android.compileSdk
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "garden.appl.mail"
@@ -53,6 +53,7 @@ dependencies {
     implementation("androidx.preference:preference-ktx:1.2.0")
     implementation("androidx.room:room-runtime:2.5.1")
     implementation("androidx.room:room-ktx:2.5.1")
+    implementation("androidx.core:core-ktx:+")
     kapt("androidx.room:room-compiler:2.5.1")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     testImplementation("junit:junit:4.13.2")
@@ -63,4 +64,5 @@ dependencies {
     implementation("org.eclipse.angus:jakarta.mail:2.0.2")
     implementation("org.eclipse.angus:angus-activation:2.0.1")
     implementation("jakarta.activation:jakarta.activation-api:2.1.2")
+    implementation("org.pgpainless:pgpainless-core:1.6.1")
 }

@@ -4,16 +4,26 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import garden.appl.mail.MailTypeConverters
+import garden.appl.mail.R
 import garden.appl.mail.databinding.FragmentLoginConfigBinding
 import garden.appl.mail.mail.MailAccount
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val LOGGING_TAG = "LoginConfigFrag"
 
-class LoginConfigFragment : Fragment() {
+class LoginConfigFragment : Fragment(), CoroutineScope by MainScope() {
     private lateinit var binding: FragmentLoginConfigBinding
 
     override fun onCreateView(
@@ -36,17 +46,35 @@ class LoginConfigFragment : Fragment() {
 
         val loginActivity = activity as LoginActivity
         binding.buttonLogin.setOnClickListener {
-            MailAccount(
+            val account = MailAccount(
                 originalAddress = loginActivity.address,
                 password = loginActivity.password,
                 imapAddress = binding.textImapAddress.text.toString(),
                 imapPort = Integer.parseInt(binding.textImapPort.text.toString()),
                 smtpAddress = binding.textSmtpAddress.text.toString(),
                 smtpPort = Integer.parseInt(binding.textSmtpPort.text.toString())
-            ).setAsCurrent(requireContext())
+            )
+            account.setAsCurrent(requireContext())
+            launch(Dispatchers.IO) {
+                try {
+                    account.connectToStore().use { store ->
+                        MailTypeConverters.toDatabase(store.getFolder("INBOX"))
+                            .refreshDatabaseMessages(requireContext(), account)
+                    }
+                } catch (e: Exception) {
+                    Log.e(LOGGING_TAG, "Failed to log in", e)
+                    Toast.makeText(context, R.string.login_fail, Toast.LENGTH_LONG).show()
+                    loginActivity.viewPager.currentItem = 0
+                    return@launch
+                }
 
-            startActivity(Intent(requireContext(), MailViewActivity::class.java)
-                .putExtra(MailViewActivity.EXTRA_FOLDER_FULL_NAME, "INBOX"))
+                withContext(Dispatchers.Main) {
+                    startActivity(
+                        Intent(requireContext(), MailViewActivity::class.java)
+                            .putExtra(MailViewActivity.EXTRA_FOLDER_FULL_NAME, "INBOX")
+                    )
+                }
+            }
         }
         return binding.root
     }
@@ -67,5 +95,11 @@ class LoginConfigFragment : Fragment() {
                     binding.buttonLogin.isEnabled = true
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        cancel()
     }
 }

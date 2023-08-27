@@ -68,7 +68,7 @@ data class MailAccount(
 
     fun setAsCurrent(context: Context) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-        prefs.edit {
+        prefs.edit(commit = true) {
             putString(ORIGINAL_ADDRESS, originalAddress)
             putString(CANONICAL_ADDRESS, canonAddress)
             putString(PASSWORD, password)

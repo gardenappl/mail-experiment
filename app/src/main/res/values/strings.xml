@@ -11,8 +11,9 @@
     <string name="extra_config_required">Additional configuration is required:</string>
     <string name="imap_address">IMAP host</string>
     <string name="imap_port">IMAP port</string>
-    <string name="smtp_address">SMTP host (SSL)</string>
-    <string name="smtp_port">SMTP port</string>
+    <string name="smtp_address">SMTP host</string>
+    <string name="smtp_port">SMTP port (SSL)</string>
+    <string name="login_fail">Failed to log in. Check your password and configuration settings.</string>
 
     <string name="compose">Compose…</string>
     <string name="select_recipient">Select recipient</string>
