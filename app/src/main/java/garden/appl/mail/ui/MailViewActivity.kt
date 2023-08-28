@@ -3,18 +3,22 @@ package garden.appl.mail.ui
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.ViewModelInitializer
 import androidx.recyclerview.widget.LinearLayoutManager
 import garden.appl.mail.MailDatabase
 import garden.appl.mail.MailTypeConverters
+import garden.appl.mail.R
+import garden.appl.mail.crypt.AutocryptSetupMessage
 import garden.appl.mail.databinding.ActivityMailViewBinding
 import garden.appl.mail.mail.MailAccount
 import garden.appl.mail.mail.MailFolder
 import garden.appl.mail.mail.MailMessageViewModel
 import jakarta.mail.Folder
 import jakarta.mail.MessagingException
+import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,12 +26,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.bouncycastle.bcpg.ArmoredInputStream
-import org.bouncycastle.openpgp.PGPPublicKeyRing
 import org.eclipse.angus.mail.imap.IMAPFolder
-import org.pgpainless.PGPainless
-import org.pgpainless.util.ArmoredInputStreamFactory
-import org.pgpainless.util.ArmoredOutputStreamFactory
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.lang.Exception
@@ -62,8 +61,7 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
         launch {
             val folder = withContext(Dispatchers.IO) {
                 MailDatabase.getDatabase(this@MailViewActivity)
-                    .folderDao.getFolder(intent.getStringExtra(EXTRA_FOLDER_FULL_NAME)!!)
-                    ?: createFolder()
+                    .folderDao.getFolder(intent.getStringExtra(EXTRA_FOLDER_FULL_NAME)!!)!!
             }
 
             this@MailViewActivity.supportActionBar?.title = folder.name
@@ -87,30 +85,59 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
                 withContext(Dispatchers.IO) {
                     val account = MailAccount.getCurrent(this@MailViewActivity)!!
 
-                    val bytes = ByteArrayOutputStream().use { out ->
-                        ArmoredOutputStreamFactory.get(out).use { armoredOut ->
-                            account.keyRing.publicKey.encode(armoredOut)
-                        }
-                        out.toByteArray()
-                    }
-                    Log.d(LOGGING_TAG, "public key: ${String(bytes)}")
+//                    val bytes = ByteArrayOutputStream().use { out ->
+//                        ArmoredOutputStreamFactory.get(out).use { armoredOut ->
+//                            account.keyRing.publicKey.encode(armoredOut)
+//                        }
+//                        out.toByteArray()
+//                    }
+//                    Log.d(LOGGING_TAG, "public key: ${String(bytes)}")
+//
+//                    val bytes2 = ByteArrayOutputStream().use { out ->
+//                        ArmoredOutputStreamFactory.get(out).use { armoredOut ->
+//                            account.keyRing.encode(armoredOut)
+//                        }
+//                        out.toByteArray()
+//                    }
+//                    Log.d(LOGGING_TAG, "Keyring: ${String(bytes2)}")
+//
+//
+//                    val bytes3 = ByteArrayOutputStream().use { out ->
+//                        ArmoredOutputStreamFactory.get(out).use { armoredOut ->
+//                            PGPPublicKeyRing(account.keyRing.publicKeys.asSequence().toList()).encode(armoredOut)
+//                        }
+//                        out.toByteArray()
+//                    }
+//                    Log.d(LOGGING_TAG, "converted public keyring: ${String(bytes3)}")
 
-                    val bytes2 = ByteArrayOutputStream().use { out ->
-                        ArmoredOutputStreamFactory.get(out).use { armoredOut ->
-                            account.keyRing.encode(armoredOut)
+                    val found = AutocryptSetupMessage.findExisting(account)
+                    Log.d(LOGGING_TAG, "Found setup msg? $found")
+                    if (found == null) {
+                        val (message, passphrase) =
+                            AutocryptSetupMessage.generate(account, this@MailViewActivity)
+                        val dialogBuilder = AlertDialog.Builder(this@MailViewActivity).apply {
+                            setTitle(R.string.autocrypt_setup_dialog_title)
+                            setMessage(getString(R.string.autocrypt_setup_dialog, String(passphrase.chars!!)))
+                            setPositiveButton(android.R.string.ok) { _, _ ->
+                                launch {
+                                    account.connectToStore().use { store ->
+                                        account.send(message,
+                                            arrayOf(InternetAddress(account.originalAddress)))
+                                    }
+                                }
+                            }
+                            setNegativeButton(android.R.string.cancel) { _, _ ->
+                                // nothing
+                            }
                         }
-                        out.toByteArray()
+                        passphrase.clear()
+
+                        withContext(Dispatchers.Main) {
+                            dialogBuilder.show()
+                        }
                     }
-                    Log.d(LOGGING_TAG, "Keyring: ${String(bytes2)}")
 
 
-                    val bytes3 = ByteArrayOutputStream().use { out ->
-                        ArmoredOutputStreamFactory.get(out).use { armoredOut ->
-                            PGPPublicKeyRing(account.keyRing.publicKeys.asSequence().toList()).encode(armoredOut)
-                        }
-                        out.toByteArray()
-                    }
-                    Log.d(LOGGING_TAG, "converted public keyring: ${String(bytes3)}")
                     try {
                         account.connectToStore().use { store ->
                             MailTypeConverters.toDatabase(store.getFolder("INBOX"))
@@ -129,72 +156,59 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
         }
     }
 
-    private suspend fun createFolder(): MailFolder {
-        Log.d(LOGGING_TAG, "Creating folder")
-        val folderName = intent.getStringExtra(EXTRA_FOLDER_FULL_NAME)!!
-
-        val account = MailAccount.getCurrent(this@MailViewActivity)!!
-
-        account.connectToStore().use { store ->
-            val folder = MailTypeConverters.toDatabase(store.getFolder(folderName))
-            MailDatabase.getDatabase(this).folderDao.insert(folder)
-            return folder
-        }
-    }
-
-    private fun debugFolder(folder: Folder) {
-        Log.d(LOGGING_TAG, "Name: ${folder.name}")
-        Log.d(LOGGING_TAG, "FUll name: ${folder.fullName}")
-        Log.d(LOGGING_TAG, "URL: ${folder.urlName}")
-
-        if (!folder.isSubscribed) Log.d(LOGGING_TAG, "Not Subscribed")
-        if (folder.type and Folder.HOLDS_MESSAGES != 0) {
-            if (folder.hasNewMessages()) Log.d(LOGGING_TAG, "Has New Messages")
-            Log.d(LOGGING_TAG, "Total Messages:  " + folder.messageCount)
-            Log.d(LOGGING_TAG, "New Messages:    " + folder.newMessageCount)
-            Log.d(LOGGING_TAG, "Unread Messages: " + folder.unreadMessageCount)
-        }
-        if ((folder.type and Folder.HOLDS_FOLDERS) != 0) Log.d(LOGGING_TAG, "Is Directory")
-
-        /*
-         * Demonstrate use of IMAP folder attributes
-         * returned by the IMAP LIST response.
-         */
-        if (folder is IMAPFolder) {
-            val attrs = folder.attributes
-            if (attrs != null && attrs.isNotEmpty()) {
-                Log.d(LOGGING_TAG, "IMAP Attributes:")
-                for (i in attrs.indices) Log.d(LOGGING_TAG, attrs[i])
-            }
-        }
-
-        if ((folder.type and Folder.HOLDS_FOLDERS) != 0) {
-            val f = folder.list()
-            for (i in f.indices) debugFolder(f[i])
-        }
-
-        if (folder.fullName == "INBOX") {
-            folder.open(Folder.READ_WRITE)
-            val messages = folder.messages
-            for (message in messages) {
-                Log.d(LOGGING_TAG, "msg num: ${message.messageNumber}")
-                val mimeMessage = message as MimeMessage
-                val out = ByteArrayOutputStream(1024 * 1024)
-                mimeMessage.writeTo(out)
-                val array = out.toByteArray()
-
-                val newMessage = MimeMessage(mimeMessage.session, ByteArrayInputStream(array))
-                if (newMessage.isMimeType("text/plain")) {
-                    Log.d(LOGGING_TAG, "msg: ${newMessage.content}")
-                } else {
-                    Log.d(LOGGING_TAG, "content type: ${newMessage.contentType}")
-                }
-                for (header in newMessage.allHeaders)
-                    Log.d(LOGGING_TAG, "header ${header.name}: ${header.value}")
-            }
-            folder.close()
-        }
-    }
+//    private fun debugFolder(folder: Folder) {
+//        Log.d(LOGGING_TAG, "Name: ${folder.name}")
+//        Log.d(LOGGING_TAG, "FUll name: ${folder.fullName}")
+//        Log.d(LOGGING_TAG, "URL: ${folder.urlName}")
+//
+//        if (!folder.isSubscribed) Log.d(LOGGING_TAG, "Not Subscribed")
+//        if (folder.type and Folder.HOLDS_MESSAGES != 0) {
+//            if (folder.hasNewMessages()) Log.d(LOGGING_TAG, "Has New Messages")
+//            Log.d(LOGGING_TAG, "Total Messages:  " + folder.messageCount)
+//            Log.d(LOGGING_TAG, "New Messages:    " + folder.newMessageCount)
+//            Log.d(LOGGING_TAG, "Unread Messages: " + folder.unreadMessageCount)
+//        }
+//        if ((folder.type and Folder.HOLDS_FOLDERS) != 0) Log.d(LOGGING_TAG, "Is Directory")
+//
+//        /*
+//         * Demonstrate use of IMAP folder attributes
+//         * returned by the IMAP LIST response.
+//         */
+//        if (folder is IMAPFolder) {
+//            val attrs = folder.attributes
+//            if (attrs != null && attrs.isNotEmpty()) {
+//                Log.d(LOGGING_TAG, "IMAP Attributes:")
+//                for (i in attrs.indices) Log.d(LOGGING_TAG, attrs[i])
+//            }
+//        }
+//
+//        if ((folder.type and Folder.HOLDS_FOLDERS) != 0) {
+//            val f = folder.list()
+//            for (i in f.indices) debugFolder(f[i])
+//        }
+//
+//        if (folder.fullName == "INBOX") {
+//            folder.open(Folder.READ_WRITE)
+//            val messages = folder.messages
+//            for (message in messages) {
+//                Log.d(LOGGING_TAG, "msg num: ${message.messageNumber}")
+//                val mimeMessage = message as MimeMessage
+//                val out = ByteArrayOutputStream(1024 * 1024)
+//                mimeMessage.writeTo(out)
+//                val array = out.toByteArray()
+//
+//                val newMessage = MimeMessage(mimeMessage.session, ByteArrayInputStream(array))
+//                if (newMessage.isMimeType("text/plain")) {
+//                    Log.d(LOGGING_TAG, "msg: ${newMessage.content}")
+//                } else {
+//                    Log.d(LOGGING_TAG, "content type: ${newMessage.contentType}")
+//                }
+//                for (header in newMessage.allHeaders)
+//                    Log.d(LOGGING_TAG, "header ${header.name}: ${header.value}")
+//            }
+//            folder.close()
+//        }
+//    }
 
     override fun onDestroy() {
         super.onDestroy()

@@ -28,7 +28,16 @@
     <string name="send">Send</string>
     <string name="cannot_display_message">Unable to display message type</string>
     <string name="unknown_msg_type">Unable to display message type: %s</string>
-    <string name="invalid_encrypt">Unable to display e-mail: invalid scheme</string>
-    <string name="unknown_encrypt">Unable to display e-mail: unknown protocol</string>
-    <string name="wrong_encrypt">Unable to display e-mail: wrong private key</string>
+    <string name="invalid_encrypt">Unable to message: invalid encryption scheme</string>
+    <string name="unknown_encrypt">Unable to message: unknown encryption protocol</string>
+    <string name="wrong_encrypt">Unable to message: wrong private key</string>
+    <string name="autocrypt_setup_subject">Autocrypt Setup Message</string>
+    <string name="autocrypt_setup">This message contains all information to transfer your Autocrypt\nsettings along with your secret key securely to another device.\n\nTo set up your new device for Autocrypt, please follow the\ninstructions that should be presented by your new device.</string>
+    <string name="autocrypt_setup_attachment">This is the Autocrypt setup file used to transfer settings and
+keys between clients. You can decrypt it using the Setup Code
+presented on your old device, and then import the contained key
+into your keyring.</string>
+
+    <string name="autocrypt_setup_dialog_title">Encryption backup key</string>
+    <string name="autocrypt_setup_dialog">Please write down the following passphrase: \n%s\nThis will be used to transfer encrypted messages from your current device to other Autocrypt devices.</string>
 </resources>
