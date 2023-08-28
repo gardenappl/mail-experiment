@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import org.bouncycastle.openpgp.PGPPublicKeyRing
 import org.bouncycastle.util.io.Streams
 import org.pgpainless.PGPainless
 import org.pgpainless.encryption_signing.EncryptionOptions
@@ -55,42 +56,51 @@ class MessageWriteActivity : AppCompatActivity(), CoroutineScope by MainScope() 
                     val db = MailDatabase.getDatabase(this@MessageWriteActivity)
                     val lastMessage = db.messageDao.getMostRecentMessageFrom(toAddress!!)!!
 
-                    val autocryptHeader = AutocryptHeader(lastMessage.autocryptHeader!!)
-                    val outputStream = ByteArrayOutputStream()
+                    val autocryptHeader = AutocryptHeader.parseHeaderValue(lastMessage.autocryptHeader!!)
+                    Log.d(LOGGING_TAG, "they got ${autocryptHeader.keyRing.size()} keys")
 
-                    val encryptionStream = PGPainless.encryptAndOrSign()
-                        .onOutputStream(outputStream)
-                        .withOptions(ProducerOptions.signAndEncrypt(
-                            EncryptionOptions.encryptCommunications()
-                                .addRecipient(autocryptHeader.keyRing),
-                            SigningOptions.get().addSignature(
-                                SecretKeyRingProtector.unprotectedKeys(),
-                                account.keyRing
-                            )
-                        ).apply {
-                            isAsciiArmor = true
-                        })
+                    val output = ByteArrayOutputStream().use { outputStream ->
+                        val encryptionStream = PGPainless.encryptAndOrSign()
+                            .onOutputStream(outputStream)
+                            .withOptions(ProducerOptions.signAndEncrypt(
+                                EncryptionOptions.encryptCommunications()
+                                    .addRecipient(autocryptHeader.keyRing),
+                                SigningOptions.get().addSignature(
+                                    SecretKeyRingProtector.unprotectedKeys(),
+                                    account.keyRing
+                                )
+                            ).apply {
+                                isAsciiArmor = true
+                            })
 
-                    Streams.pipeAll(textBody.byteInputStream(), encryptionStream)
-                    encryptionStream.close()
+                        encryptionStream.use {
+                            Streams.pipeAll(textBody.byteInputStream(), it)
+                        }
 
-                    val outputString = String(outputStream.toByteArray())
-                    Log.d(LOGGING_TAG, "out str: $outputString")
-                    val result = encryptionStream.result
-                    Log.d(LOGGING_TAG, "result: ${result.encryptionAlgorithm}")
+                        String(outputStream.toByteArray())
+                    }
 
                     message.setContent(MimeMultipart("encrypted; protocol=\"application/pgp-encrypted\"",
                         MimeBodyPart().apply {
                             setContent("Version: 1", "application/pgp-encrypted")
                         },
                         MimeBodyPart().apply {
-                            setContent(outputString, "application/octet-stream")
+                            setContent(output, "application/octet-stream")
                         }
                     ))
                 } else {
                     message.setContent(textBody, "text/plain")
                 }
 
+                val publicKeys = account.keyRing.publicKeys.asSequence().toList()
+                Log.d(LOGGING_TAG, "I got ${publicKeys.size} keys")
+                val myHeader = AutocryptHeader(
+                    account.canonAddress,
+                    PGPPublicKeyRing(publicKeys),
+                    AutocryptHeader.PreferEncrypt.MUTUAL
+                )
+                Log.d(LOGGING_TAG, "setting header: $myHeader")
+                message.setHeader("Autocrypt", myHeader.toString())
                 account.send(message, InternetAddress.parse(toAddress))
                 this@MessageWriteActivity.finishAndRemoveTask()
             }

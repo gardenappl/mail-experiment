@@ -16,6 +16,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.bouncycastle.util.io.Streams
+import org.pgpainless.PGPainless
+import org.pgpainless.decryption_verification.ConsumerOptions
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 
 class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     companion object {
@@ -44,7 +50,7 @@ class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                 .messageDao.getMessage(localID)!!
             Log.d(LOGGING_TAG, "autocrypt: ${message.autocryptHeader}")
             message.autocryptHeader?.run {
-                val header = AutocryptHeader(this)
+                val header = AutocryptHeader.parseHeaderValue(this)
                 Log.d(LOGGING_TAG, header.keyRing.publicKey.userIDs.next().toString())
             }
             Log.d(LOGGING_TAG, message.toString())
@@ -65,6 +71,76 @@ class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                 binding.from.text = getString(R.string.from, message.from)
                 binding.body.text = when {
                     mimeMessage.isMimeType("text/plain") -> mimeMessage.content as String
+                    mimeMessage.isMimeType("multipart/encrypted") -> run {
+                        val multipart = mimeMessage.content as MimeMultipart
+                        var isPGPv1 = false
+                        for (i in 0 until multipart.count) {
+                            val part = multipart.getBodyPart(i)
+                            if (part.isMimeType("application/pgp-encrypted")) {
+                                if (part.getHeader("Version")?.contains("1") == true) {
+                                    isPGPv1 = true
+                                    break
+                                }
+                                val content = String((part.content as ByteArrayInputStream).readBytes())
+                                if (content.contains(Regex("""Version:\s*1"""))) {
+                                    isPGPv1 = true
+                                    break
+                                }
+                            }
+                        }
+                        if (!isPGPv1)
+                            return@run getString(R.string.unknown_encrypt)
+
+                        val account = MailAccount.getCurrent(this@MessageReadActivity)!!
+                        val privateKey = account.keyRing
+
+                        val lastMessage = withContext(Dispatchers.IO) {
+                            val db = MailDatabase.getDatabase(this@MessageReadActivity)
+
+                            return@withContext db.messageDao.getMostRecentMessageFrom(message.from)
+                        }
+                        val lastAutocryptHeader = lastMessage?.autocryptHeader?.let { value ->
+                            AutocryptHeader.parseHeaderValue(value)
+                        }
+
+                        for (i in 0 until multipart.count) {
+                            val part = multipart.getBodyPart(i)
+                            if (part.isMimeType("application/octet-stream")) {
+                                val encrypted = String((part.content as ByteArrayInputStream).readBytes())
+
+                                Log.d(LOGGING_TAG, "Encrypted message is : ${
+                                    String((part.content as ByteArrayInputStream).readBytes())
+                                }")
+
+                                return@run ByteArrayOutputStream().use { decryptedStream ->
+                                    encrypted.byteInputStream().use { encryptedStream ->
+//                                    (part.content as ByteArrayInputStream).use { encryptedStream ->
+                                        val decryptionStream = PGPainless.decryptAndOrVerify()
+                                            .onInputStream(encryptedStream)
+                                            .withOptions(ConsumerOptions.get()
+                                                .addVerificationCert(lastAutocryptHeader?.keyRing)
+                                                .addDecryptionKey(privateKey)
+                                            )
+
+                                        decryptionStream.use {
+                                            Streams.pipeAll(it, decryptedStream)
+                                        }
+                                        val result = decryptionStream.metadata
+                                        lastAutocryptHeader?.let {
+                                            val isVerified = result.isVerifiedSignedBy(it.keyRing)
+                                            Log.d(LOGGING_TAG, "Is verified: $isVerified")
+                                        }
+                                        Log.d(LOGGING_TAG, "was encrypted?: ${result.isEncrypted}")
+                                    }
+
+                                    return@use String(decryptedStream.toByteArray())
+                                }
+                            }
+                        }
+
+
+                        return@run getString(R.string.wrong_encrypt)
+                    }
                     mimeMessage.isMimeType("multipart/*") -> {
                         val multipart = mimeMessage.content as MimeMultipart
                         var text = getString(R.string.cannot_display_message)

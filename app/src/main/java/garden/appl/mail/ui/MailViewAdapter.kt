@@ -5,6 +5,8 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.text.format.DateUtils
 import android.util.Log
@@ -50,6 +52,13 @@ class MailViewAdapter internal constructor(
         val binding = holder.binding
 
 //        binding.from.text = context.getString(R.string.from, message.from)
+        if (message.contentType.startsWith("multipart/encrypted", ignoreCase = true)) {
+            for (view in listOf(binding.from, binding.date, binding.subject)) {
+                view.setTextColor(context.resources.getColor(R.color.white))
+            }
+            binding.root.background =
+                ColorDrawable(context.resources.getColor(R.color.teal_700))
+        }
         binding.from.text = message.from
         binding.date.text = DateUtils.getRelativeDateTimeString(context,
             message.date.time,

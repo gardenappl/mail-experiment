@@ -23,6 +23,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.bouncycastle.bcpg.ArmoredInputStream
+import org.bouncycastle.openpgp.PGPPublicKeyRing
 import org.eclipse.angus.mail.imap.IMAPFolder
 import org.pgpainless.PGPainless
 import org.pgpainless.util.ArmoredInputStreamFactory
@@ -92,7 +93,24 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
                         }
                         out.toByteArray()
                     }
-                    Log.d(LOGGING_TAG, String(bytes))
+                    Log.d(LOGGING_TAG, "public key: ${String(bytes)}")
+
+                    val bytes2 = ByteArrayOutputStream().use { out ->
+                        ArmoredOutputStreamFactory.get(out).use { armoredOut ->
+                            account.keyRing.encode(armoredOut)
+                        }
+                        out.toByteArray()
+                    }
+                    Log.d(LOGGING_TAG, "Keyring: ${String(bytes2)}")
+
+
+                    val bytes3 = ByteArrayOutputStream().use { out ->
+                        ArmoredOutputStreamFactory.get(out).use { armoredOut ->
+                            PGPPublicKeyRing(account.keyRing.publicKeys.asSequence().toList()).encode(armoredOut)
+                        }
+                        out.toByteArray()
+                    }
+                    Log.d(LOGGING_TAG, "converted public keyring: ${String(bytes3)}")
                     try {
                         account.connectToStore().use { store ->
                             MailTypeConverters.toDatabase(store.getFolder("INBOX"))

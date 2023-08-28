@@ -28,4 +28,7 @@
     <string name="send">Send</string>
     <string name="cannot_display_message">Unable to display message type</string>
     <string name="unknown_msg_type">Unable to display message type: %s</string>
+    <string name="invalid_encrypt">Unable to display e-mail: invalid scheme</string>
+    <string name="unknown_encrypt">Unable to display e-mail: unknown protocol</string>
+    <string name="wrong_encrypt">Unable to display e-mail: wrong private key</string>
 </resources>

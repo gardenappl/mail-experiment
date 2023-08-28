@@ -29,7 +29,12 @@ abstract class MailMessageDao {
     abstract suspend fun getMessage(localId: Int): MailMessage?
 
     @Query("SELECT * FROM $TABLE_NAME WHERE \"$FROM\" LIKE '%<' || :from || '>%' OR \"$FROM\" = :from ORDER BY $EFFECTIVE_DATE DESC LIMIT 1")
-    abstract fun getMostRecentMessageFrom(from: String): MailMessage?
+    abstract fun getMostRecentMessageFromAddress(from: String): MailMessage?
+
+    fun getMostRecentMessageFrom(from: String): MailMessage? {
+        val extractedAddress = Regex("((?<=<).*(?=>)|^[^<>]*\$)").find(from)
+        return getMostRecentMessageFromAddress(extractedAddress!!.value)
+    }
 
     @Query("DELETE FROM $TABLE_NAME WHERE $MESSAGE_ID = :messageID")
     abstract suspend fun deleteMessageID(messageID: String)
