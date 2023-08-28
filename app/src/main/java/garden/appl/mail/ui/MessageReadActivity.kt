@@ -12,6 +12,7 @@ import garden.appl.mail.R
 import garden.appl.mail.crypt.AutocryptHeader
 import garden.appl.mail.databinding.FragmentMessageBinding
 import garden.appl.mail.mail.MailAccount
+import garden.appl.mail.mail.MailMessage
 import jakarta.mail.Part
 import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.MimeMultipart
@@ -26,6 +27,7 @@ import kotlinx.coroutines.withContext
 import org.bouncycastle.util.io.Streams
 import org.pgpainless.PGPainless
 import org.pgpainless.decryption_verification.ConsumerOptions
+import org.pgpainless.exception.MissingDecryptionMethodException
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 
@@ -76,15 +78,20 @@ class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                 binding.subject.text = mimeMessage.subject
                 binding.from.text = getString(R.string.from, message.from)
 
-                displayMessageBody(mimeMessage, message.from)
+                displayMessageBody(mimeMessage, message)
             }
         }
     }
 
-    private suspend fun displayMessageBody(messagePart: Part, from: String) {
+    private suspend fun displayMessageBody(messagePart: Part, originalMessage: MailMessage) {
         Log.d(LOGGING_TAG, "DISPLAYING ${messagePart.contentType}")
         if (messagePart.contentType.contains(Regex(""";\s*protected-headers="v1"""", RegexOption.IGNORE_CASE))) {
-            binding.subject.text = MimeUtility.decodeWord(messagePart.getHeader("Subject").first())
+            val subject = MimeUtility.decodeWord(messagePart.getHeader("Subject").first())
+            binding.subject.text = subject
+            launch {
+                val db = MailDatabase.getDatabase(this@MessageReadActivity)
+                db.messageDao.update(originalMessage.copy(subject = subject))
+            }
         }
         when {
             messagePart.isMimeType("text/plain") -> {
@@ -143,7 +150,7 @@ class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                 val lastMessage = withContext(Dispatchers.IO) {
                     val db = MailDatabase.getDatabase(this@MessageReadActivity)
 
-                    return@withContext db.messageDao.getMostRecentMessageFrom(from)
+                    return@withContext db.messageDao.getMostRecentMessageFrom(originalMessage.from)
                 }
                 val lastAutocryptHeader = lastMessage?.autocryptHeader?.let { value ->
                     AutocryptHeader.parseHeaderValue(value)
@@ -163,37 +170,41 @@ class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                         return@run ByteArrayOutputStream().use { decryptedStream ->
 //                            encrypted.byteInputStream().use { encryptedStream ->
                             (part.content as ByteArrayInputStream).use { encryptedStream ->
-                                val decryptionStream = PGPainless.decryptAndOrVerify()
-                                    .onInputStream(encryptedStream)
-                                    .withOptions(
-                                        ConsumerOptions.get()
-                                            .addVerificationCert(lastAutocryptHeader?.keyRing)
-                                            .addDecryptionKey(privateKey)
-                                    )
+                                try {
+                                    val decryptionStream = PGPainless.decryptAndOrVerify()
+                                        .onInputStream(encryptedStream)
+                                        .withOptions(
+                                            ConsumerOptions.get()
+                                                .addVerificationCert(lastAutocryptHeader?.keyRing)
+                                                .addDecryptionKey(privateKey)
+                                        )
 
-                                decryptionStream.use {
-                                    Streams.pipeAll(it, decryptedStream)
+                                    decryptionStream.use {
+                                        Streams.pipeAll(it, decryptedStream)
+                                    }
+                                    val result = decryptionStream.metadata
+                                    lastAutocryptHeader?.let {
+                                        val isVerified = result.isVerifiedSignedBy(it.keyRing)
+                                        Log.d(LOGGING_TAG, "Is verified: $isVerified")
+                                    }
+                                    Log.d(LOGGING_TAG, "was encrypted?: ${result.isEncrypted}")
+                                } catch (e: MissingDecryptionMethodException) {
+                                    binding.wrappedBody.text = getString(R.string.wrong_encrypt)
+                                    return
                                 }
-                                val result = decryptionStream.metadata
-                                lastAutocryptHeader?.let {
-                                    val isVerified = result.isVerifiedSignedBy(it.keyRing)
-                                    Log.d(LOGGING_TAG, "Is verified: $isVerified")
-                                }
-                                Log.d(LOGGING_TAG, "was encrypted?: ${result.isEncrypted}")
                             }
                             val decryptedMessage = decryptedStream.toByteArray()
                             displayMessageBody(MimeMessage(
                                 account.session,
                                 ByteArrayInputStream(decryptedMessage)
-                            ), from)
+                            ), originalMessage)
                             return
                         }
 
                     }
                 }
 
-
-                binding.wrappedBody.text = getString(R.string.wrong_encrypt)
+                binding.wrappedBody.text = getString(R.string.invalid_encrypt)
             }
 
             messagePart.isMimeType("multipart/*") -> {
@@ -201,7 +212,7 @@ class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                 for (i in 0 until multipart.count) {
                     val part = multipart.getBodyPart(i)
                     if (part.isMimeType("text/plain")) {
-                        displayMessageBody(part, from)
+                        displayMessageBody(part, originalMessage)
                         return
                     }
                 }
