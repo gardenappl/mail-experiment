@@ -5,6 +5,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
+import androidx.room.Upsert
 import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.mail.MailMessage.Companion.DATE
 import garden.appl.mail.mail.MailMessage.Companion.EFFECTIVE_DATE
@@ -28,10 +30,13 @@ abstract class MailMessageDao {
     @Query("SELECT * FROM $TABLE_NAME WHERE $LOCAL_ID = :localId")
     abstract suspend fun getMessage(localId: Int): MailMessage?
 
-    @Query("SELECT * FROM $TABLE_NAME WHERE \"$FROM\" LIKE '%<' || :from || '>%' OR \"$FROM\" = :from ORDER BY $EFFECTIVE_DATE DESC LIMIT 1")
-    abstract fun getMostRecentMessageFromAddress(from: String): MailMessage?
+    @Query("SELECT * FROM $TABLE_NAME WHERE $MESSAGE_ID = :messageID")
+    abstract suspend fun getMessage(messageID: String): MailMessage?
 
-    fun getMostRecentMessageFrom(from: String): MailMessage? {
+    @Query("SELECT * FROM $TABLE_NAME WHERE \"$FROM\" LIKE '%<' || :from || '>%' OR \"$FROM\" = :from ORDER BY $EFFECTIVE_DATE DESC LIMIT 1")
+    abstract suspend fun getMostRecentMessageFromAddress(from: String): MailMessage?
+
+    suspend fun getMostRecentMessageFrom(from: String): MailMessage? {
         val extractedAddress = Regex("((?<=<).*(?=>)|^[^<>]*\$)").find(from)
         return getMostRecentMessageFromAddress(extractedAddress!!.value)
     }
@@ -42,9 +47,11 @@ abstract class MailMessageDao {
     @Insert
     abstract suspend fun insertRaw(message: MailMessage)
 
-    @Transaction
     open suspend fun insert(message: MimeMessage) {
         message.messageID?.let { deleteMessageID(message.messageID) }
         insertRaw(MailTypeConverters.toDatabase(message))
     }
+
+    @Update
+    abstract suspend fun update(message: MailMessage)
 }

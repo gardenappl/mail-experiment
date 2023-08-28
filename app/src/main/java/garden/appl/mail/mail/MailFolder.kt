@@ -55,8 +55,11 @@ data class MailFolder(
                 val folder = store.getFolder(fullName)
                 try {
                     folder.open(Folder.READ_ONLY)
-                    for (message in folder.messages) {
-                        db.insert(message as MimeMessage)
+                    for (i in 0 until folder.messageCount) {
+                        val message = folder.getMessage(folder.messageCount - 1) as MimeMessage
+                        if (db.getMessage(message.messageID) != null)
+                            break
+                        db.insert(message)
                     }
                 } catch (e: Exception) {
                     Log.e("MailFolder", "could not sync", e)
