@@ -1,6 +1,7 @@
 package garden.appl.mail.ui
 
 import android.content.Intent
+import android.icu.text.CaseMap.Fold
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -10,10 +11,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import garden.appl.mail.MailDatabase
 import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.R
 import garden.appl.mail.databinding.FragmentLoginConfigBinding
 import garden.appl.mail.mail.MailAccount
+import jakarta.mail.Folder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -52,8 +55,7 @@ class LoginConfigFragment : Fragment(), CoroutineScope by MainScope() {
                 imapAddress = binding.textImapAddress.text.toString(),
                 imapPort = Integer.parseInt(binding.textImapPort.text.toString()),
                 smtpAddress = binding.textSmtpAddress.text.toString(),
-                smtpPort = Integer.parseInt(binding.textSmtpPort.text.toString()),
-                keyRing = MailAccount.keyRing(loginActivity.address)
+                smtpPort = Integer.parseInt(binding.textSmtpPort.text.toString())
             )
             account.setAsCurrent(requireContext())
             launch(Dispatchers.IO) {
@@ -61,6 +63,17 @@ class LoginConfigFragment : Fragment(), CoroutineScope by MainScope() {
                     account.connectToStore().use { store ->
                         MailTypeConverters.toDatabase(store.getFolder("INBOX"))
                             .refreshDatabaseMessages(requireContext(), account)
+                        val db = MailDatabase.getDatabase(requireContext())
+                        val root = store.defaultFolder
+                        root.open(Folder.READ_ONLY)
+                        root.use {
+                            for (folder in root.list()) {
+                                folder.open(Folder.READ_ONLY)
+                                folder.use {
+                                    db.folderDao.insert(MailTypeConverters.toDatabase(folder))
+                                }
+                            }
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(LOGGING_TAG, "Failed to log in", e)

@@ -2,8 +2,11 @@ package garden.appl.mail.mail
 
 import android.content.Context
 import android.icu.text.IDNA
+import android.util.Log
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
+import garden.appl.mail.MailDatabase
+import garden.appl.mail.MailTypeConverters
 import jakarta.mail.Message
 import jakarta.mail.MessagingException
 import jakarta.mail.Session
@@ -82,6 +85,23 @@ data class MailAccount(
         }
     }
 
+    constructor(
+        originalAddress: String,
+        password: String,
+        imapAddress: String,
+        imapPort: Int,
+        smtpAddress: String,
+        smtpPort: Int
+    ) : this(
+        originalAddress,
+        password,
+        imapAddress,
+        imapPort,
+        smtpAddress,
+        smtpPort,
+        keyRing(originalAddress)
+    )
+
     suspend fun send(msg: MimeMessage, to: Array<InternetAddress>) {
         // create a message
         msg.setFrom(InternetAddress(originalAddress))
@@ -140,7 +160,7 @@ data class MailAccount(
             )
         }
 
-        fun keyRing(address: String): PGPSecretKeyRing {
+        private fun keyRing(address: String): PGPSecretKeyRing {
             return PGPainless.generateKeyRing().modernKeyRing(address)
         }
     }
