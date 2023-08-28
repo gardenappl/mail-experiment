@@ -42,11 +42,12 @@ class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         launch(Dispatchers.IO) {
             val message = MailDatabase.getDatabase(this@MessageReadActivity)
                 .messageDao.getMessage(localID)!!
-//            Log.d(LOGGING_TAG, "autocrypt: ${message.autocryptHeader}")
-//            message.autocryptHeader?.run {
-//                val header = AutocryptHeader(this)
-//                Log.d(LOGGING_TAG, header.keyRing.userIDs.next())
-//            }
+            Log.d(LOGGING_TAG, "autocrypt: ${message.autocryptHeader}")
+            message.autocryptHeader?.run {
+                val header = AutocryptHeader(this)
+                Log.d(LOGGING_TAG, header.keyRing.publicKey.userIDs.next().toString())
+            }
+            Log.d(LOGGING_TAG, message.toString())
 
 
             val session = MailAccount.getCurrent(this@MessageReadActivity)!!.session

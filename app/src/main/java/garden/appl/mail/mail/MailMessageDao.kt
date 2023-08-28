@@ -28,7 +28,7 @@ abstract class MailMessageDao {
     @Query("SELECT * FROM $TABLE_NAME WHERE $LOCAL_ID = :localId")
     abstract suspend fun getMessage(localId: Int): MailMessage?
 
-    @Query("SELECT * FROM $TABLE_NAME WHERE \"$FROM\" LIKE '%<' || :from || '>%' ORDER BY $EFFECTIVE_DATE DESC LIMIT 1")
+    @Query("SELECT * FROM $TABLE_NAME WHERE \"$FROM\" LIKE '%<' || :from || '>%' OR \"$FROM\" = :from ORDER BY $EFFECTIVE_DATE DESC LIMIT 1")
     abstract fun getMostRecentMessageFrom(from: String): MailMessage?
 
     @Query("DELETE FROM $TABLE_NAME WHERE $MESSAGE_ID = :messageID")

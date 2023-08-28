@@ -16,8 +16,8 @@ class AutocryptHeader(val headerString: String) {
         private set
 
     init {
-        val split = headerString.lines().joinToString()
-            .splitToSequence(Regex("; *"))
+        val split = headerString.splitToSequence(Regex("; *"))
+            .map { parameter -> parameter.lines().joinToString(separator = "", transform = String::trim)}
         for (item in split) {
             Log.d("headeritem", "item: '$item'")
             val (key, value) = item.split(Regex("= *"))
