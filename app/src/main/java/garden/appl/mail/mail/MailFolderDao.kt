@@ -21,4 +21,7 @@ abstract class MailFolderDao {
 
     @Upsert
     abstract suspend fun insert(folder: MailFolder)
+
+    @Query("SELECT * FROM $TABLE_NAME")
+    abstract suspend fun getAllFolders(): List<MailFolder>
 }

@@ -3,11 +3,14 @@ package garden.appl.mail.ui
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.MenuItem
+import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.ViewModelInitializer
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.navigation.NavigationView
 import garden.appl.mail.MailDatabase
 import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.R
@@ -34,11 +37,14 @@ import java.lang.Exception
 
 private const val LOGGING_TAG = "MailViewActivity"
 
-class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
+class MailViewActivity : AppCompatActivity(),
+    CoroutineScope by MainScope(), NavigationView.OnNavigationItemSelectedListener
+{
     private lateinit var _binding: ActivityMailViewBinding
     private val binding get() = _binding
 
     private lateinit var messagesViewModel: MailMessageViewModel
+    private lateinit var actionBarDrawerToggle: ActionBarDrawerToggle
 
     companion object {
         const val EXTRA_FOLDER_FULL_NAME = "folder"
@@ -49,6 +55,18 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
 
         _binding = ActivityMailViewBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        actionBarDrawerToggle = ActionBarDrawerToggle(this, binding.root,
+            R.string.nav_drawer_open, R.string.nav_drawer_close)
+        binding.root.addDrawerListener(actionBarDrawerToggle)
+        actionBarDrawerToggle.syncState()
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        launch {
+            updateNavigationItems()
+        }
+
+        binding.navigation.setNavigationItemSelectedListener(this)
 
         binding.composeButton.setOnClickListener {
             startActivity(Intent(this, SelectRecipientActivity::class.java))
@@ -85,31 +103,6 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
                 withContext(Dispatchers.IO) {
                     val account = MailAccount.getCurrent(this@MailViewActivity)!!
 
-//                    val bytes = ByteArrayOutputStream().use { out ->
-//                        ArmoredOutputStreamFactory.get(out).use { armoredOut ->
-//                            account.keyRing.publicKey.encode(armoredOut)
-//                        }
-//                        out.toByteArray()
-//                    }
-//                    Log.d(LOGGING_TAG, "public key: ${String(bytes)}")
-//
-//                    val bytes2 = ByteArrayOutputStream().use { out ->
-//                        ArmoredOutputStreamFactory.get(out).use { armoredOut ->
-//                            account.keyRing.encode(armoredOut)
-//                        }
-//                        out.toByteArray()
-//                    }
-//                    Log.d(LOGGING_TAG, "Keyring: ${String(bytes2)}")
-//
-//
-//                    val bytes3 = ByteArrayOutputStream().use { out ->
-//                        ArmoredOutputStreamFactory.get(out).use { armoredOut ->
-//                            PGPPublicKeyRing(account.keyRing.publicKeys.asSequence().toList()).encode(armoredOut)
-//                        }
-//                        out.toByteArray()
-//                    }
-//                    Log.d(LOGGING_TAG, "converted public keyring: ${String(bytes3)}")
-
                     val found = AutocryptSetupMessage.findExisting(account)
                     Log.d(LOGGING_TAG, "Found setup msg? $found")
                     if (found == null) {
@@ -120,10 +113,9 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
                             setMessage(getString(R.string.autocrypt_setup_dialog, String(passphrase.chars!!)))
                             setPositiveButton(android.R.string.ok) { _, _ ->
                                 launch {
-                                    account.connectToStore().use { store ->
-                                        account.send(message,
-                                            arrayOf(InternetAddress(account.originalAddress)))
-                                    }
+                                    Log.d(LOGGING_TAG, "Just gonna send it")
+                                    account.send(message,
+                                        arrayOf(InternetAddress(account.originalAddress)))
                                 }
                             }
                             setNegativeButton(android.R.string.cancel) { _, _ ->
@@ -140,8 +132,16 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
 
                     try {
                         account.connectToStore().use { store ->
-                            MailTypeConverters.toDatabase(store.getFolder("INBOX"))
-                                .refreshDatabaseMessages(this@MailViewActivity, account)
+                            val currentFolderName = intent.getStringExtra(EXTRA_FOLDER_FULL_NAME)
+                            Log.d(LOGGING_TAG, "Loading $currentFolderName")
+                            MailTypeConverters.toDatabase(store.getFolder(currentFolderName))
+                                .refreshDatabaseMessages(this@MailViewActivity, store)
+
+                            MailTypeConverters.toDatabase(store.defaultFolder)
+                                .syncFoldersRecursive(this@MailViewActivity, store)
+                            withContext(Dispatchers.Main) {
+                                updateNavigationItems()
+                            }
                         }
                     } catch (mex: MessagingException) {
                         var ex: Exception? = mex
@@ -209,6 +209,33 @@ class MailViewActivity : AppCompatActivity(), CoroutineScope by MainScope()  {
 //            folder.close()
 //        }
 //    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (actionBarDrawerToggle.onOptionsItemSelected(item))
+            return true
+
+        return super.onOptionsItemSelected(item)
+    }
+
+    private suspend fun updateNavigationItems() {
+        val navigationView = binding.navigation
+        navigationView.menu.clear()
+
+        val db = MailDatabase.getDatabase(this@MailViewActivity)
+        val folders = db.folderDao.getAllFolders()
+        for (folder in folders) {
+            navigationView.menu.add(folder.fullName)
+        }
+    }
+
+    override fun onNavigationItemSelected(item: MenuItem): Boolean {
+        binding.root.closeDrawers()
+        startActivity(
+            Intent(this, MailViewActivity::class.java)
+                .putExtra(EXTRA_FOLDER_FULL_NAME, item.title)
+        )
+        return true
+    }
 
     override fun onDestroy() {
         super.onDestroy()

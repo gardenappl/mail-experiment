@@ -62,18 +62,7 @@ class LoginConfigFragment : Fragment(), CoroutineScope by MainScope() {
                 try {
                     account.connectToStore().use { store ->
                         MailTypeConverters.toDatabase(store.getFolder("INBOX"))
-                            .refreshDatabaseMessages(requireContext(), account)
-                        val db = MailDatabase.getDatabase(requireContext())
-                        val root = store.defaultFolder
-                        root.open(Folder.READ_ONLY)
-                        root.use {
-                            for (folder in root.list()) {
-                                folder.open(Folder.READ_ONLY)
-                                folder.use {
-                                    db.folderDao.insert(MailTypeConverters.toDatabase(folder))
-                                }
-                            }
-                        }
+                            .refreshDatabaseMessages(requireContext(), store)
                     }
                 } catch (e: Exception) {
                     Log.e(LOGGING_TAG, "Failed to log in", e)

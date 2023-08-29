@@ -52,8 +52,12 @@ class MailTypeConverters {
                 fullName = folder.fullName,
                 name = folder.name,
                 url = folder.urlName.toString(),
-                totalMessages = folder.messageCount,
-                unreadMessages = folder.unreadMessageCount,
+                totalMessages = if (folder.type and Folder.HOLDS_MESSAGES != 0)
+                    folder.messageCount
+                else -1,
+                unreadMessages = if (folder.type and Folder.HOLDS_MESSAGES != 0)
+                    folder.unreadMessageCount
+                else -1,
                 isDirectory = folder.type and Folder.HOLDS_FOLDERS != 0
             )
         }

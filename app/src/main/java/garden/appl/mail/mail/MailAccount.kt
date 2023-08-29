@@ -7,6 +7,7 @@ import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import garden.appl.mail.MailDatabase
 import garden.appl.mail.MailTypeConverters
+import jakarta.mail.Folder
 import jakarta.mail.Message
 import jakarta.mail.MessagingException
 import jakarta.mail.Session
@@ -15,6 +16,7 @@ import jakarta.mail.internet.MimeMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.bouncycastle.openpgp.PGPSecretKeyRing
+import org.eclipse.angus.mail.iap.CommandFailedException
 import org.eclipse.angus.mail.imap.IMAPStore
 import org.pgpainless.PGPainless
 import java.lang.Exception
@@ -138,6 +140,8 @@ data class MailAccount(
     }
 
     companion object {
+        const val LOGGING_TAG = "MailAccount"
+
         fun getCurrent(context: Context): MailAccount? {
             val prefs = PreferenceManager.getDefaultSharedPreferences(context)
             val originalAddress = prefs.getString(ORIGINAL_ADDRESS, "")

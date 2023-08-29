@@ -40,4 +40,7 @@ into your keyring.</string>
 
     <string name="autocrypt_setup_dialog_title">Encryption backup key</string>
     <string name="autocrypt_setup_dialog">Please write down the following passphrase: \n%s\nThis will be used to transfer encrypted messages from your current device to other Autocrypt devices.</string>
+
+    <string name="nav_drawer_close">Close navigation drawer</string>
+    <string name="nav_drawer_open">Open navigation drawer</string>
 </resources>

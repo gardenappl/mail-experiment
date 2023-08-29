@@ -1,7 +1,6 @@
 package garden.appl.mail.mail
 
 import android.content.Context
-import android.icu.text.CaseMap.Fold
 import android.util.Log
 import androidx.room.ColumnInfo
 import androidx.room.Entity
@@ -12,8 +11,8 @@ import jakarta.mail.Folder
 import jakarta.mail.internet.MimeMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.eclipse.angus.mail.imap.IMAPFolder
-import org.eclipse.angus.mail.imap.SortTerm
+import org.eclipse.angus.mail.iap.CommandFailedException
+import org.eclipse.angus.mail.imap.IMAPStore
 
 @Entity(tableName = MailFolder.TABLE_NAME)
 data class MailFolder(
@@ -47,25 +46,45 @@ data class MailFolder(
         const val IS_DIRECTORY = "is_directory"
     }
 
-    suspend fun refreshDatabaseMessages(context: Context, account: MailAccount) {
+    suspend fun refreshDatabaseMessages(context: Context, store: IMAPStore) {
         val db = MailDatabase.getDatabase(context).messageDao
 
-        account.connectToStore().use { store ->
-            withContext(Dispatchers.IO) {
-                val folder = store.getFolder(fullName)
-                try {
-                    folder.open(Folder.READ_ONLY)
-                    for (i in 0 until folder.messageCount) {
-                        val message = folder.getMessage(folder.messageCount - 1) as MimeMessage
-                        if (db.getMessage(message.messageID) != null)
-                            break
-                        db.insert(message)
-                    }
-                } catch (e: Exception) {
-                    Log.e("MailFolder", "could not sync", e)
-                } finally {
-                    folder.close()
+        withContext(Dispatchers.IO) {
+            val folder = store.getFolder(fullName)
+            try {
+                folder.open(Folder.READ_ONLY)
+                for (i in folder.messageCount downTo 1) {
+                    val message = folder.getMessage(i) as MimeMessage
+//                    val existingMessage = db.getMessage(message.messageID)
+//                    if (existingMessage != null) {
+//                        Log.d("MailFolder", "Reached existing message at $i: $existingMessage")
+//                        break
+//                    }
+                    db.insert(message)
                 }
+            } catch (e: Exception) {
+                Log.e("MailFolder", "could not sync", e)
+            } finally {
+                folder.close()
+            }
+        }
+    }
+
+    suspend fun syncFoldersRecursive(context: Context, store: IMAPStore) {
+        val db = MailDatabase.getDatabase(context)
+        val folder = store.getFolder(fullName)
+
+        for (subFolder in folder.list()) {
+            if (subFolder.fullName == folder.fullName)
+                continue
+
+            try {
+                val mailSubFolder = MailTypeConverters.toDatabase(subFolder)
+                Log.d(MailAccount.LOGGING_TAG, "Got $mailSubFolder")
+                db.folderDao.insert(mailSubFolder)
+                mailSubFolder.syncFoldersRecursive(context, store)
+            } catch (e: CommandFailedException) {
+                Log.w(MailAccount.LOGGING_TAG, "could not sync ${folder.fullName}", e)
             }
         }
     }
