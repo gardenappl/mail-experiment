@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatActivity
 import garden.appl.mail.MailDatabase
 import garden.appl.mail.R
 import garden.appl.mail.crypt.AutocryptHeader
+import garden.appl.mail.crypt.PublicKeyProviders
 import garden.appl.mail.databinding.FragmentMessageWriteBinding
 import garden.appl.mail.mail.MailAccount
 import jakarta.mail.internet.InternetAddress
@@ -43,7 +44,7 @@ class MessageWriteActivity : AppCompatActivity(), CoroutineScope by MainScope() 
         _binding = FragmentMessageWriteBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val toAddress = intent.getStringExtra(EXTRA_RECIPIENTS_TO)
+        val toAddress = intent.getStringExtra(EXTRA_RECIPIENTS_TO)!!
         binding.to.text = getString(R.string.to, toAddress)
         binding.sendButton.setOnClickListener {
             val account = MailAccount.getCurrent(this)!!
@@ -53,11 +54,8 @@ class MessageWriteActivity : AppCompatActivity(), CoroutineScope by MainScope() 
 
             launch(Dispatchers.IO) {
                 if (intent.getBooleanExtra(EXTRA_DO_ENCRYPT, false)) {
-                    val db = MailDatabase.getDatabase(this@MessageWriteActivity)
-                    val lastMessage = db.messageDao.getMostRecentMessageFrom(toAddress!!)!!
-
-                    val autocryptHeader = AutocryptHeader.parseHeaderValue(lastMessage.autocryptHeader!!)
-                    Log.d(LOGGING_TAG, "they got ${autocryptHeader.keyRing.size()} keys")
+                    val publicKeyRing = PublicKeyProviders.getKeyRing(toAddress, this@MessageWriteActivity)!!
+                    Log.d(LOGGING_TAG, "they got ${publicKeyRing.size()} keys")
 
 
                     val plainMessage = MimeMessage(account.session)
@@ -69,7 +67,7 @@ class MessageWriteActivity : AppCompatActivity(), CoroutineScope by MainScope() 
                             .withOptions(ProducerOptions.signAndEncrypt(
                                 EncryptionOptions.encryptCommunications()
                                     .addRecipient(account.publicKeyRing)
-                                    .addRecipient(autocryptHeader.keyRing),
+                                    .addRecipient(publicKeyRing),
                                 SigningOptions.get()
                                     .addSignature(
                                         SecretKeyRingProtector.unprotectedKeys(),

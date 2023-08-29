@@ -9,6 +9,7 @@ import androidx.core.view.isVisible
 import androidx.core.widget.addTextChangedListener
 import garden.appl.mail.MailDatabase
 import garden.appl.mail.R
+import garden.appl.mail.crypt.PublicKeyProviders
 import garden.appl.mail.databinding.FragmentSelectRecipientBinding
 import jakarta.mail.internet.MimeUtility
 import kotlinx.coroutines.CoroutineScope
@@ -21,6 +22,10 @@ class SelectRecipientActivity : AppCompatActivity(), CoroutineScope by MainScope
     private lateinit var _binding: FragmentSelectRecipientBinding
     val binding get() = _binding
 
+    companion object {
+        const val LOGGING_TAG = "SelectRecipientActivity"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -28,18 +33,22 @@ class SelectRecipientActivity : AppCompatActivity(), CoroutineScope by MainScope
         setContentView(binding.root)
 
         binding.textInput.addTextChangedListener { text ->
-            launch(Dispatchers.IO) {
-                val db = MailDatabase.getDatabase(this@SelectRecipientActivity)
-                val message = db.messageDao.getMostRecentMessageFrom(text.toString())
+            launch {
+                Log.d(LOGGING_TAG, "Text change: $text")
+                val address = text.toString()
+                val keyRing = PublicKeyProviders.getKeyRing(address, this@SelectRecipientActivity)
+                if (address != binding.textInput.text.toString()) {
+                    return@launch
+                }
 
                 launch(Dispatchers.Main) {
-                    if (message?.autocryptHeader != null) {
-                        Log.d("SelectRec", "Recent: $message")
+                    if (keyRing != null) {
                         binding.encryptionAvailable.text =
                             getString(R.string.encryption_available, text.toString())
                         binding.encryptionAvailable.isVisible = true
                         binding.writePrivateMessage.isEnabled = true
                     } else {
+                        Log.d(LOGGING_TAG, "No key for $address")
                         binding.encryptionAvailable.isVisible = false
                         binding.writePrivateMessage.isEnabled = false
                     }

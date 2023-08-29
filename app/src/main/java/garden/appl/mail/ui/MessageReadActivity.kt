@@ -10,6 +10,7 @@ import garden.appl.mail.MailDatabase
 import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.R
 import garden.appl.mail.crypt.AutocryptHeader
+import garden.appl.mail.crypt.PublicKeyProviders
 import garden.appl.mail.databinding.FragmentMessageBinding
 import garden.appl.mail.mail.MailAccount
 import garden.appl.mail.mail.MailMessage
@@ -146,28 +147,12 @@ class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
                 val account = MailAccount.getCurrent(this@MessageReadActivity)!!
                 val privateKey = account.keyRing
-
-                val lastMessage = withContext(Dispatchers.IO) {
-                    val db = MailDatabase.getDatabase(this@MessageReadActivity)
-
-                    return@withContext db.messageDao.getMostRecentMessageFrom(originalMessage.from)
-                }
-                val lastAutocryptHeader = lastMessage?.autocryptHeader?.let { value ->
-                    AutocryptHeader.parseHeaderValue(value)
-                }
+                val senderKey = PublicKeyProviders.getKeyRing(originalMessage.from, this@MessageReadActivity)
 
                 for (i in 0 until multipart.count) {
                     val part = multipart.getBodyPart(i)
                     if (part.isMimeType("application/octet-stream")) {
-//                        val encrypted = String((part.content as ByteArrayInputStream).readBytes())
-
-//                        Log.d(
-//                            LOGGING_TAG, "Encrypted message is : ${
-//                                String((part.content as ByteArrayInputStream).readBytes())
-//                            }"
-//                        )
-
-                        return@run ByteArrayOutputStream().use { decryptedStream ->
+                        ByteArrayOutputStream().use { decryptedStream ->
 //                            encrypted.byteInputStream().use { encryptedStream ->
                             (part.content as ByteArrayInputStream).use { encryptedStream ->
                                 try {
@@ -175,7 +160,7 @@ class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                                         .onInputStream(encryptedStream)
                                         .withOptions(
                                             ConsumerOptions.get()
-                                                .addVerificationCert(lastAutocryptHeader?.keyRing)
+                                                .addVerificationCert(senderKey)
                                                 .addDecryptionKey(privateKey)
                                         )
 
@@ -183,10 +168,8 @@ class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                                         Streams.pipeAll(it, decryptedStream)
                                     }
                                     val result = decryptionStream.metadata
-                                    lastAutocryptHeader?.let {
-                                        val isVerified = result.isVerifiedSignedBy(it.keyRing)
-                                        Log.d(LOGGING_TAG, "Is verified: $isVerified")
-                                    }
+                                    val isVerified = result.isVerifiedSignedBy(senderKey!!)
+                                    Log.d(LOGGING_TAG, "Is verified: $isVerified")
                                     Log.d(LOGGING_TAG, "was encrypted?: ${result.isEncrypted}")
                                 } catch (e: MissingDecryptionMethodException) {
                                     binding.wrappedBody.text = getString(R.string.wrong_encrypt)
