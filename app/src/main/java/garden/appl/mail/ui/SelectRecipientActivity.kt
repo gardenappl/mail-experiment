@@ -3,6 +3,7 @@ package garden.appl.mail.ui
 import android.content.ContentResolver.MimeTypeInfo
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.core.widget.addTextChangedListener
@@ -33,6 +34,7 @@ class SelectRecipientActivity : AppCompatActivity(), CoroutineScope by MainScope
 
                 launch(Dispatchers.Main) {
                     if (message?.autocryptHeader != null) {
+                        Log.d("SelectRec", "Recent: $message")
                         binding.encryptionAvailable.text =
                             getString(R.string.encryption_available, text.toString())
                         binding.encryptionAvailable.isVisible = true

@@ -15,6 +15,7 @@ import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.bouncycastle.openpgp.PGPPublicKeyRing
 import org.bouncycastle.openpgp.PGPSecretKeyRing
 import org.eclipse.angus.mail.iap.CommandFailedException
 import org.eclipse.angus.mail.imap.IMAPStore
@@ -60,6 +61,9 @@ data class MailAccount(
             _session
         }
     }
+
+    val publicKeyRing: PGPPublicKeyRing
+    get() = PGPPublicKeyRing(keyRing.publicKeys.asSequence().toList())
 
     init {
         // Canonicalize according to Autocrypt Level 1

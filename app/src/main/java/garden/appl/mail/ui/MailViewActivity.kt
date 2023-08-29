@@ -27,6 +27,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import org.pgpainless.PGPainless
 import java.lang.Exception
 
 
@@ -107,7 +108,8 @@ class MailViewActivity : AppCompatActivity(),
                 withContext(Dispatchers.IO) {
                     val account = MailAccount.getCurrent(this@MailViewActivity)!!
 
-                    AutocryptSetupMessage.bootstrapFrom(account, AutocryptSetupMessage.findExisting(account)!!)
+                    Log.d(LOGGING_TAG, "Key: ${PGPainless.asciiArmor(account.keyRing)}")
+//                    AutocryptSetupMessage.bootstrapFrom(account, AutocryptSetupMessage.findExisting(account)!!)
 
                     try {
                         account.connectToStore().use { store ->

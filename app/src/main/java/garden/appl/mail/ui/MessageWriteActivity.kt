@@ -59,25 +59,37 @@ class MessageWriteActivity : AppCompatActivity(), CoroutineScope by MainScope() 
                     val autocryptHeader = AutocryptHeader.parseHeaderValue(lastMessage.autocryptHeader!!)
                     Log.d(LOGGING_TAG, "they got ${autocryptHeader.keyRing.size()} keys")
 
+
+                    val plainMessage = MimeMessage(account.session)
+                    plainMessage.setContent(textBody, "text/plain; format=flowed")
+
                     val output = ByteArrayOutputStream().use { outputStream ->
                         val encryptionStream = PGPainless.encryptAndOrSign()
                             .onOutputStream(outputStream)
                             .withOptions(ProducerOptions.signAndEncrypt(
                                 EncryptionOptions.encryptCommunications()
+                                    .addRecipient(account.publicKeyRing)
                                     .addRecipient(autocryptHeader.keyRing),
-                                SigningOptions.get().addSignature(
-                                    SecretKeyRingProtector.unprotectedKeys(),
-                                    account.keyRing
-                                )
+                                SigningOptions.get()
+                                    .addSignature(
+                                        SecretKeyRingProtector.unprotectedKeys(),
+                                        account.keyRing
+                                    )
                             ).apply {
                                 isAsciiArmor = true
                             })
 
                         encryptionStream.use {
-                            Streams.pipeAll(textBody.byteInputStream(), it)
+//                            Streams.pipeAll(textBody.byteInputStream(), it)
+                            val messageBytes = ByteArrayOutputStream().let { byteStream ->
+                                plainMessage.writeTo(byteStream)
+                                return@let byteStream.toByteArray()
+                            }
+                            Log.d(LOGGING_TAG, "PLain message: ${String(messageBytes)}")
+                            Streams.pipeAll(messageBytes.inputStream(), it)
                         }
 
-                        String(outputStream.toByteArray())
+                        return@use String(outputStream.toByteArray())
                     }
 
                     message.setContent(MimeMultipart("encrypted; protocol=\"application/pgp-encrypted\"",
@@ -89,14 +101,14 @@ class MessageWriteActivity : AppCompatActivity(), CoroutineScope by MainScope() 
                         }
                     ))
                 } else {
-                    message.setContent(textBody, "text/plain")
+                    message.setContent(textBody, "text/plain; format=flowed")
                 }
 
-                val publicKeys = account.keyRing.publicKeys.asSequence().toList()
-                Log.d(LOGGING_TAG, "I got ${publicKeys.size} keys")
+//                val publicKeys = account.keyRing.publicKeys.asSequence().toList()
+//                Log.d(LOGGING_TAG, "I got ${publicKeys.size} keys")
                 val myHeader = AutocryptHeader(
                     account.canonAddress,
-                    PGPPublicKeyRing(publicKeys),
+                    account.publicKeyRing,
                     AutocryptHeader.PreferEncrypt.MUTUAL
                 )
                 Log.d(LOGGING_TAG, "setting header: $myHeader")
