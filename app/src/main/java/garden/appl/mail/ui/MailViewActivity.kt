@@ -17,12 +17,9 @@ import garden.appl.mail.R
 import garden.appl.mail.crypt.AutocryptSetupMessage
 import garden.appl.mail.databinding.ActivityMailViewBinding
 import garden.appl.mail.mail.MailAccount
-import garden.appl.mail.mail.MailFolder
 import garden.appl.mail.mail.MailMessageViewModel
-import jakarta.mail.Folder
 import jakarta.mail.MessagingException
 import jakarta.mail.internet.InternetAddress
-import jakarta.mail.internet.MimeMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -30,9 +27,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import org.eclipse.angus.mail.imap.IMAPFolder
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.lang.Exception
 
 
@@ -49,6 +43,7 @@ class MailViewActivity : AppCompatActivity(),
 
     companion object {
         const val EXTRA_FOLDER_FULL_NAME = "folder"
+        const val EXTRA_FIRST_VISIT = "first"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -90,11 +85,19 @@ class MailViewActivity : AppCompatActivity(),
                     return@ViewModelInitializer MailMessageViewModel(this@MailViewActivity.application, folder)
                 }
             ))[MailMessageViewModel::class.java]
-            launch(Dispatchers.Main) {
-                messagesViewModel.messages.observe(this@MailViewActivity) { messages ->
-                    messages?.let {
-                        adapter.messagesList = messages
-                    }
+            messagesViewModel.messages.observe(this@MailViewActivity) { messages ->
+                messages?.let {
+                    adapter.messagesList = messages
+                }
+            }
+            if (intent.getBooleanExtra(EXTRA_FIRST_VISIT, false)) {
+                val account = MailAccount.getCurrent(this@MailViewActivity)!!
+
+                account.connectToStore().use { store ->
+                    val currentFolderName = intent.getStringExtra(EXTRA_FOLDER_FULL_NAME)
+                    Log.d(LOGGING_TAG, "Loading $currentFolderName")
+                    MailTypeConverters.toDatabase(store.getFolder(currentFolderName))
+                        .refreshDatabaseMessages(this@MailViewActivity, store)
                 }
             }
         }
@@ -103,6 +106,8 @@ class MailViewActivity : AppCompatActivity(),
             launch {
                 withContext(Dispatchers.IO) {
                     val account = MailAccount.getCurrent(this@MailViewActivity)!!
+
+                    AutocryptSetupMessage.bootstrapFrom(account, AutocryptSetupMessage.findExisting(account)!!)
 
                     try {
                         account.connectToStore().use { store ->
@@ -129,7 +134,7 @@ class MailViewActivity : AppCompatActivity(),
             }
         }
     }
-    
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (actionBarDrawerToggle.onOptionsItemSelected(item))
             return true

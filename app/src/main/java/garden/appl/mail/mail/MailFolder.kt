@@ -55,11 +55,11 @@ data class MailFolder(
                 folder.open(Folder.READ_ONLY)
                 for (i in folder.messageCount downTo 1) {
                     val message = folder.getMessage(i) as MimeMessage
-                    val existingMessage = db.getMessage(message.messageID)
-                    if (existingMessage != null) {
-                        Log.d("MailFolder", "Reached existing message at $i: $existingMessage")
-                        break
-                    }
+//                    val existingMessage = db.getMessage(message.messageID)
+//                    if (existingMessage != null) {
+//                        Log.d("MailFolder", "Reached existing message at $i: $existingMessage")
+//                        break
+//                    }
                     db.insert(message)
                 }
             } catch (e: Exception) {

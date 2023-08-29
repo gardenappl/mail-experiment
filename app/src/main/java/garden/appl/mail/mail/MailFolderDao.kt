@@ -16,9 +16,6 @@ abstract class MailFolderDao {
     @Query("DELETE FROM $TABLE_NAME WHERE $FULL_NAME = :fullName")
     abstract fun delete(fullName: String)
 
-    @Insert
-    abstract fun insertRaw(folder: MailFolder)
-
     @Upsert
     abstract suspend fun insert(folder: MailFolder)
 

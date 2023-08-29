@@ -84,6 +84,7 @@ data class MailAccount(
             putInt(IMAP_PORT, imapPort)
             putString(SMTP_ADDRESS, smtpAddress)
             putInt(SMTP_PORT, smtpPort)
+            putString(KEYRING_ARMORED, PGPainless.asciiArmor(keyRing))
         }
     }
 
@@ -101,7 +102,7 @@ data class MailAccount(
         imapPort,
         smtpAddress,
         smtpPort,
-        keyRing(originalAddress)
+        PGPainless.generateKeyRing().modernKeyRing(originalAddress)
     )
 
     suspend fun send(msg: MimeMessage, to: Array<InternetAddress>) {
@@ -154,18 +155,9 @@ data class MailAccount(
                 imapPort = prefs.getInt(IMAP_PORT, 0),
                 smtpAddress = prefs.getString(SMTP_ADDRESS, "")!!,
                 smtpPort = prefs.getInt(SMTP_PORT, 0),
-                keyRing = prefs.getString(KEYRING_ARMORED, "")?.let { keyringString ->
-                    PGPainless.readKeyRing().secretKeyRing(keyringString)
-                } ?: keyRing(originalAddress).also { newRing ->
-                    prefs.edit {
-                        putString(KEYRING_ARMORED, PGPainless.asciiArmor(newRing))
-                    }
-                }
+                keyRing = PGPainless.readKeyRing().secretKeyRing(
+                    prefs.getString(KEYRING_ARMORED, "")!!)!!
             )
-        }
-
-        private fun keyRing(address: String): PGPSecretKeyRing {
-            return PGPainless.generateKeyRing().modernKeyRing(address)
         }
     }
 }

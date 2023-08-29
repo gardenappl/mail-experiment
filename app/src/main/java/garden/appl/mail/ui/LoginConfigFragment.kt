@@ -1,7 +1,6 @@
 package garden.appl.mail.ui
 
 import android.content.Intent
-import android.icu.text.CaseMap.Fold
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -12,13 +11,11 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
-import garden.appl.mail.MailDatabase
 import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.R
 import garden.appl.mail.crypt.AutocryptSetupMessage
 import garden.appl.mail.databinding.FragmentLoginConfigBinding
 import garden.appl.mail.mail.MailAccount
-import jakarta.mail.Folder
 import jakarta.mail.internet.InternetAddress
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +24,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import org.pgpainless.PGPainless
 
 private const val LOGGING_TAG = "LoginConfigFrag"
 
@@ -61,56 +59,77 @@ class LoginConfigFragment : Fragment(), CoroutineScope by MainScope() {
                 smtpAddress = binding.textSmtpAddress.text.toString(),
                 smtpPort = Integer.parseInt(binding.textSmtpPort.text.toString())
             )
-            account.setAsCurrent(requireContext())
+//            account.setAsCurrent(requireContext())
             launch(Dispatchers.IO) {
                 try {
                     account.connectToStore().use { store ->
                         MailTypeConverters.toDatabase(store.defaultFolder)
                             .syncFoldersRecursive(requireContext(), store)
-                        MailTypeConverters.toDatabase(store.getFolder("INBOX"))
-                            .refreshDatabaseMessages(requireContext(), store)
+//                        MailTypeConverters.toDatabase(store.getFolder("INBOX"))
+//                            .refreshDatabaseMessages(requireContext(), store)
                     }
                 } catch (e: Exception) {
                     Log.e(LOGGING_TAG, "Failed to log in", e)
-                    Toast.makeText(context, R.string.login_fail, Toast.LENGTH_LONG).show()
-                    loginActivity.viewPager.currentItem = 0
+                    launch(Dispatchers.Main) {
+                        Toast.makeText(context, R.string.login_fail, Toast.LENGTH_LONG).show()
+                        loginActivity.viewPager.currentItem = 0
+                    }
                     return@launch
                 }
-                val found = AutocryptSetupMessage.findExisting(account)
-                Log.d(LOGGING_TAG, "Found setup msg? $found")
-                if (found == null) {
-                    val (message, passphrase) =
-                        AutocryptSetupMessage.generate(account, requireContext())
-                    val dialogBuilder = AlertDialog.Builder(requireContext()).apply {
-                        setTitle(R.string.autocrypt_setup_dialog_title)
-                        setMessage(getString(R.string.autocrypt_setup_dialog, String(passphrase.chars!!)))
-                        setPositiveButton(android.R.string.ok) { _, _ ->
-                            Log.d(LOGGING_TAG, "Just gonna send it?")
-                            runBlocking {
-                                account.send(message,
-                                    arrayOf(InternetAddress(account.originalAddress)))
-                            }
-                        }
-                        setNegativeButton(android.R.string.cancel) { _, _ ->
-                            // nothing
-                        }
-                    }
-                    passphrase.clear()
+                val setupMessage = AutocryptSetupMessage.findExisting(account)
+                Log.d(LOGGING_TAG, "Found setup msg? $setupMessage")
+                if (setupMessage != null) {
+                    val keyRing = AutocryptSetupMessage.bootstrapFrom(account, setupMessage)
 
-                    withContext(Dispatchers.Main) {
-                        dialogBuilder.show()
-                    }
-                }
+                    Log.d(LOGGING_TAG, "Key before: ${PGPainless.asciiArmor(account.keyRing)}")
+                    Log.d(LOGGING_TAG, "Key before: ${PGPainless.asciiArmor(keyRing)}")
+                    val bootstrappedAccount = account.copy(
+                        keyRing = keyRing
+                    )
+                    bootstrappedAccount.setAsCurrent(requireContext())
 
-                withContext(Dispatchers.Main) {
                     startActivity(
                         Intent(requireContext(), MailViewActivity::class.java)
                             .putExtra(MailViewActivity.EXTRA_FOLDER_FULL_NAME, "INBOX")
+                            .putExtra(MailViewActivity.EXTRA_FIRST_VISIT, true)
                     )
+                } else {
+                    setupAutocrypt(account)
                 }
             }
         }
         return binding.root
+    }
+
+    private suspend fun setupAutocrypt(account: MailAccount) {
+        val (message, passphrase) =
+            AutocryptSetupMessage.generate(account, requireContext())
+        val dialogBuilder = AlertDialog.Builder(requireContext()).apply {
+            setTitle(R.string.autocrypt_setup_dialog_title)
+            setMessage(getString(R.string.autocrypt_setup_dialog, String(passphrase.chars!!)))
+            setPositiveButton(android.R.string.ok) { _, _ ->
+                Log.d(LOGGING_TAG, "Just gonna send it?")
+                runBlocking {
+                    account.send(message,
+                        arrayOf(InternetAddress(account.originalAddress)))
+                    account.setAsCurrent(context)
+                    startActivity(
+                        Intent(requireContext(), MailViewActivity::class.java)
+                            .putExtra(MailViewActivity.EXTRA_FOLDER_FULL_NAME, "INBOX")
+                            .putExtra(MailViewActivity.EXTRA_FIRST_VISIT, true)
+                    )
+                }
+            }
+            setCancelable(false)
+//            setNegativeButton(android.R.string.cancel) { _, _ ->
+//                // nothing
+//            }
+        }
+        passphrase.clear()
+
+        withContext(Dispatchers.Main) {
+            dialogBuilder.show()
+        }
     }
 
     private inner class LoginButtonWatcher(private val binding: FragmentLoginConfigBinding) : TextWatcher {

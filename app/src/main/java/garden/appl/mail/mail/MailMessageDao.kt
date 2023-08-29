@@ -47,8 +47,12 @@ abstract class MailMessageDao {
     @Insert
     abstract suspend fun insertRaw(message: MailMessage)
 
+    @Transaction
     open suspend fun insert(message: MimeMessage) {
-        message.messageID?.let { deleteMessageID(message.messageID) }
+        message.messageID?.let {
+            if (getMessage(message.messageID) != null)
+                return
+        }
         insertRaw(MailTypeConverters.toDatabase(message))
     }
 
