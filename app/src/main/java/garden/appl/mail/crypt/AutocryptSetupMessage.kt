@@ -1,34 +1,36 @@
 package garden.appl.mail.crypt
 
 import android.content.Context
-import android.icu.text.CaseMap.Fold
+import android.text.Html
 import android.text.TextUtils
+import android.util.Log
+import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.R
 import garden.appl.mail.mail.MailAccount
 import garden.appl.mail.mail.MailMessage
-import jakarta.mail.Address
-import jakarta.mail.BodyPart
 import jakarta.mail.FetchProfile
 import jakarta.mail.Folder
 import jakarta.mail.Message
-import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeBodyPart
 import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.MimeMultipart
-import org.bouncycastle.bcpg.ArmoredOutputStream
+import org.bouncycastle.openpgp.PGPSecretKeyRing
 import org.bouncycastle.util.io.Streams
 import org.pgpainless.PGPainless
+import org.pgpainless.decryption_verification.ConsumerOptions
 import org.pgpainless.encryption_signing.EncryptionOptions
 import org.pgpainless.encryption_signing.ProducerOptions
-import org.pgpainless.util.ArmoredOutputStreamFactory
 import org.pgpainless.util.Passphrase
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.security.SecureRandom
+import java.util.Scanner
 
 object AutocryptSetupMessage {
     private const val HEADER_KEY = "Autocrypt-Setup-Message"
+    private const val LOGGING_TAG = "AutocryptSetupMsg"
 
-    suspend fun findExisting(account: MailAccount): Message? {
+    suspend fun findExisting(account: MailAccount): MailMessage? {
         account.connectToStore().use { store ->
             val inbox = store.getFolder("INBOX")
             inbox.open(Folder.READ_ONLY)
@@ -38,17 +40,70 @@ object AutocryptSetupMessage {
                 folder.fetch(messages, FetchProfile().apply {
                     add(HEADER_KEY)
                 })
-                for (message in messages) {
+                for (message in messages.reversed()) {
                     if (message.getHeader(HEADER_KEY)?.contains("v1") == true
 //                    && message.from.contains(InternetAddress(account.originalAddress))
 //                    && message.getRecipients(Message.RecipientType.TO).contains(InternetAddress(account.originalAddress))
                     ) {
-                        return message
+                        return MailTypeConverters.toDatabase(message as MimeMessage)
                     }
                 }
             }
         }
         return null
+    }
+
+    fun bootstrapFrom(account: MailAccount, mailMessage: MailMessage): PGPSecretKeyRing {
+        Log.d(LOGGING_TAG, "BEFORE: ${PGPainless.asciiArmor(account.keyRing)}")
+
+        val message = MailTypeConverters.fromDatabase(mailMessage, account.session)
+        val multipart = message.content as MimeMultipart
+
+        for (i in 0 until multipart.count) {
+            val part = multipart.getBodyPart(i)
+            if (!part.isMimeType("application/autocrypt-setup"))
+                continue
+
+            val sb = StringBuilder()
+            val scanner = Scanner(part.content as ByteArrayInputStream)
+            var isPGPMessage = false
+            while (scanner.hasNextLine()) {
+                val line = scanner.nextLine()
+                if (line == "-----BEGIN PGP MESSAGE-----") {
+                    isPGPMessage = true
+                }
+                if (isPGPMessage)
+                    sb.appendLine(line)
+                if (line == "-----END PGP MESSAGE-----")
+                    isPGPMessage = false
+            }
+            val filtered = sb.toString()
+            Log.d(LOGGING_TAG, "FILTERED: $filtered")
+
+            val passphrase = Passphrase.fromPassword("2848-9257-3734-1510-4201-7124-1152-6685-6481")
+            val payload = ByteArrayOutputStream().use { decryptedStream ->
+                (filtered.byteInputStream()).use { inputStream ->
+                    val decryptionStream = PGPainless.decryptAndOrVerify()
+                        .onInputStream(inputStream)
+                        .withOptions(
+                            ConsumerOptions()
+                                .addDecryptionPassphrase(passphrase)
+//                                .forceNonOpenPgpData()
+                        )
+                    decryptionStream.use {
+                        Streams.pipeAll(it, decryptedStream)
+                    }
+                    Log.d(LOGGING_TAG, "Algo: ${decryptionStream.metadata.encryptionAlgorithm}")
+                }
+
+                return@use decryptedStream.toByteArray()
+            }
+            val asciiArmoredPayload = String(payload)
+            Log.d(LOGGING_TAG, "AFTER: $asciiArmoredPayload")
+            return PGPainless.readKeyRing().secretKeyRing(asciiArmoredPayload)!!
+        }
+
+        throw IllegalArgumentException()
     }
 
     fun generate(account: MailAccount, context: Context): Pair<MimeMessage, Passphrase> {
@@ -100,19 +155,17 @@ object AutocryptSetupMessage {
                 setContent(context.getString(R.string.autocrypt_setup), "text/plain")
             })
             addBodyPart(MimeBodyPart().apply {
-                val privateKeyDump = PGPainless.asciiArmor(account.keyRing)
                 setContent(
                     """
                         <html>
-                            <body>
-                                <p>
-                                ${TextUtils.htmlEncode(context.getString(R.string.autocrypt_setup_attachment))}
-                                </p>
-                                <pre>
-                                $pgpMessage
-                                </pre>
-                            </body>
-                        </html>""".trimIndent(), "application/autocrypt-setup"
+                        <body><p>${Html.escapeHtml(context.getString(R.string.autocrypt_setup_attachment))
+                        .lineSequence().joinToString(separator = " ") }</p>
+                        <pre>
+                        $pgpMessage
+                        </pre></body>
+                        </html>
+                        """.lines().joinToString(separator = "\n", transform = String::trim),
+                    "application/autocrypt-setup"
                 )
                 setHeader(
                     "Content-Disposition",
