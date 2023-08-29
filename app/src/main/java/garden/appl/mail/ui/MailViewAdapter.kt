@@ -52,13 +52,20 @@ class MailViewAdapter internal constructor(
         val binding = holder.binding
 
 //        binding.from.text = context.getString(R.string.from, message.from)
+        var colorSecondary = com.google.android.material.R.color.m3_default_color_secondary_text
+        var colorPrimary = R.color.colorForeground
+        var colorBackground = R.color.white
         if (message.contentType.startsWith("multipart/encrypted", ignoreCase = true)) {
-            for (view in listOf(binding.from, binding.date, binding.subject)) {
-                view.setTextColor(context.resources.getColor(R.color.white))
-            }
-            binding.root.background =
-                ColorDrawable(context.resources.getColor(R.color.teal_700))
+            colorSecondary = R.color.white
+            colorPrimary = R.color.white
+            colorBackground = R.color.teal_700
         }
+        binding.subject.setTextColor(context.resources.getColor(colorPrimary))
+        for (view in listOf(binding.from, binding.date)) {
+            view.setTextColor(context.resources.getColor(colorSecondary))
+        }
+        binding.root.background = ColorDrawable(context.resources.getColor(colorBackground))
+
         binding.from.text = message.from
         binding.date.text = DateUtils.getRelativeDateTimeString(context,
             message.date.time,
