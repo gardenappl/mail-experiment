@@ -94,12 +94,14 @@ class MailViewActivity : AppCompatActivity(),
             if (intent.getBooleanExtra(EXTRA_FIRST_VISIT, false)) {
                 val account = MailAccount.getCurrent(this@MailViewActivity)!!
 
-                account.connectToStore().use { store ->
-                    val currentFolderName = intent.getStringExtra(EXTRA_FOLDER_FULL_NAME)
-                    Log.d(LOGGING_TAG, "Loading $currentFolderName")
-                    launch(Dispatchers.IO) {
-                        MailTypeConverters.toDatabase(store.getFolder(currentFolderName))
-                            .refreshDatabaseMessages(this@MailViewActivity, store)
+                launch(Dispatchers.IO) {
+                    account.connectToStore().use { store ->
+                        val currentFolderName = intent.getStringExtra(EXTRA_FOLDER_FULL_NAME)
+                        Log.d(LOGGING_TAG, "Loading $currentFolderName")
+                        withContext(Dispatchers.IO) {
+                            MailTypeConverters.toDatabase(store.getFolder(currentFolderName))
+                                .refreshDatabaseMessages(this@MailViewActivity, store)
+                        }
                     }
                 }
             }
