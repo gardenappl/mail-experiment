@@ -53,7 +53,7 @@ object AutocryptSetupMessage {
         return null
     }
 
-    fun bootstrapFrom(account: MailAccount, mailMessage: MailMessage): PGPSecretKeyRing {
+    fun bootstrapFrom(account: MailAccount, mailMessage: MailMessage, passphrase: Passphrase): PGPSecretKeyRing {
         Log.d(LOGGING_TAG, "BEFORE: ${PGPainless.asciiArmor(account.keyRing)}")
 
         val message = MailTypeConverters.fromDatabase(mailMessage, account.session)
@@ -80,7 +80,7 @@ object AutocryptSetupMessage {
             val filtered = sb.toString()
             Log.d(LOGGING_TAG, "FILTERED: $filtered")
 
-            val passphrase = Passphrase.fromPassword("2848-9257-3734-1510-4201-7124-1152-6685-6481")
+//            val passphrase = Passphrase.fromPassword("2848-9257-3734-1510-4201-7124-1152-6685-6481")
             val payload = ByteArrayOutputStream().use { decryptedStream ->
                 (filtered.byteInputStream()).use { inputStream ->
                     val decryptionStream = PGPainless.decryptAndOrVerify()

@@ -43,4 +43,8 @@ into your keyring.</string>
 
     <string name="nav_drawer_close">Close navigation drawer</string>
     <string name="nav_drawer_open">Open navigation drawer</string>
+
+    <string name="autocrypt_prompt_passphrase_title">Autocrypt setup</string>
+    <string name="autocrypt_prompt_passphrase">Looks like a mail application has setup encryption for this e-mail account. Enter the Autocrypt passphrase below to access encrypted messages.</string>
+    <string name="autocrypt_prompt_passphrase_error">Setup error. Check your password.</string>
 </resources>
