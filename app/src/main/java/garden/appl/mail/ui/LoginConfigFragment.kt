@@ -10,18 +10,22 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import garden.appl.mail.MailDatabase
 import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.R
+import garden.appl.mail.crypt.AutocryptSetupMessage
 import garden.appl.mail.databinding.FragmentLoginConfigBinding
 import garden.appl.mail.mail.MailAccount
 import jakarta.mail.Folder
+import jakarta.mail.internet.InternetAddress
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 private const val LOGGING_TAG = "LoginConfigFrag"
@@ -61,6 +65,8 @@ class LoginConfigFragment : Fragment(), CoroutineScope by MainScope() {
             launch(Dispatchers.IO) {
                 try {
                     account.connectToStore().use { store ->
+                        MailTypeConverters.toDatabase(store.defaultFolder)
+                            .syncFoldersRecursive(requireContext(), store)
                         MailTypeConverters.toDatabase(store.getFolder("INBOX"))
                             .refreshDatabaseMessages(requireContext(), store)
                     }
@@ -69,6 +75,31 @@ class LoginConfigFragment : Fragment(), CoroutineScope by MainScope() {
                     Toast.makeText(context, R.string.login_fail, Toast.LENGTH_LONG).show()
                     loginActivity.viewPager.currentItem = 0
                     return@launch
+                }
+                val found = AutocryptSetupMessage.findExisting(account)
+                Log.d(LOGGING_TAG, "Found setup msg? $found")
+                if (found == null) {
+                    val (message, passphrase) =
+                        AutocryptSetupMessage.generate(account, requireContext())
+                    val dialogBuilder = AlertDialog.Builder(requireContext()).apply {
+                        setTitle(R.string.autocrypt_setup_dialog_title)
+                        setMessage(getString(R.string.autocrypt_setup_dialog, String(passphrase.chars!!)))
+                        setPositiveButton(android.R.string.ok) { _, _ ->
+                            Log.d(LOGGING_TAG, "Just gonna send it?")
+                            runBlocking {
+                                account.send(message,
+                                    arrayOf(InternetAddress(account.originalAddress)))
+                            }
+                        }
+                        setNegativeButton(android.R.string.cancel) { _, _ ->
+                            // nothing
+                        }
+                    }
+                    passphrase.clear()
+
+                    withContext(Dispatchers.Main) {
+                        dialogBuilder.show()
+                    }
                 }
 
                 withContext(Dispatchers.Main) {
