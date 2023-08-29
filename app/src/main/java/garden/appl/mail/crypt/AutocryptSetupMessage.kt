@@ -14,8 +14,11 @@ import jakarta.mail.Message
 import jakarta.mail.internet.MimeBodyPart
 import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.MimeMultipart
+import jakarta.mail.search.HeaderTerm
+import jakarta.mail.search.SearchTerm
 import org.bouncycastle.openpgp.PGPSecretKeyRing
 import org.bouncycastle.util.io.Streams
+import org.eclipse.angus.mail.imap.SortTerm
 import org.pgpainless.PGPainless
 import org.pgpainless.decryption_verification.ConsumerOptions
 import org.pgpainless.encryption_signing.EncryptionOptions
@@ -34,23 +37,16 @@ object AutocryptSetupMessage {
         account.connectToStore().use { store ->
             val inbox = store.getFolder("INBOX")
             inbox.open(Folder.READ_ONLY)
-            inbox.use {  folder ->
-
-                val messages = inbox.messages
-                folder.fetch(messages, FetchProfile().apply {
-                    add(HEADER_KEY)
-                })
-                for (message in messages.reversed()) {
-                    if (message.getHeader(HEADER_KEY)?.contains("v1") == true
-//                    && message.from.contains(InternetAddress(account.originalAddress))
-//                    && message.getRecipients(Message.RecipientType.TO).contains(InternetAddress(account.originalAddress))
-                    ) {
-                        return MailTypeConverters.toDatabase(message as MimeMessage)
-                    }
+            inbox.use { folder ->
+                val messages = folder.search(
+                    HeaderTerm(HEADER_KEY, "v1")
+                ).map { message ->
+                    MailTypeConverters.toDatabase(message as MimeMessage)
                 }
+
+                return messages.maxBy(MailMessage::effectiveDate)
             }
         }
-        return null
     }
 
     fun bootstrapFrom(account: MailAccount, mailMessage: MailMessage, passphrase: Passphrase): PGPSecretKeyRing {
@@ -69,9 +65,8 @@ object AutocryptSetupMessage {
             var isPGPMessage = false
             while (scanner.hasNextLine()) {
                 val line = scanner.nextLine()
-                if (line == "-----BEGIN PGP MESSAGE-----") {
+                if (line == "-----BEGIN PGP MESSAGE-----")
                     isPGPMessage = true
-                }
                 if (isPGPMessage)
                     sb.appendLine(line)
                 if (line == "-----END PGP MESSAGE-----")
@@ -80,7 +75,6 @@ object AutocryptSetupMessage {
             val filtered = sb.toString()
             Log.d(LOGGING_TAG, "FILTERED: $filtered")
 
-//            val passphrase = Passphrase.fromPassword("2848-9257-3734-1510-4201-7124-1152-6685-6481")
             val payload = ByteArrayOutputStream().use { decryptedStream ->
                 (filtered.byteInputStream()).use { inputStream ->
                     val decryptionStream = PGPainless.decryptAndOrVerify()
@@ -137,7 +131,7 @@ object AutocryptSetupMessage {
             return@use String(encryptedStream.toByteArray())
         }
 
-        //Warning: not secure!
+        // String are a bit less secure than char[] or Passphrase
         // https://stackoverflow.com/questions/8881291/why-is-char-preferred-over-string-for-passwords/8881376#8881376
 //        val passwordString = password.joinToString(
 //            separator = "-",
