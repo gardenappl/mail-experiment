@@ -169,7 +169,18 @@ class MessageReadActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                                     }
                                     val result = decryptionStream.metadata
                                     val isVerified = result.isVerifiedSignedBy(senderKey!!)
-                                    Log.d(LOGGING_TAG, "Is verified: $isVerified")
+                                    if (isVerified) {
+                                        Log.d(LOGGING_TAG, "VERIFIED")
+
+//                                        launch {
+//                                            val db = MailDatabase.getDatabase(this@MessageReadActivity)
+//                                            db.messageDao.update(originalMessage.copy(subject = verifiedSubject))
+//                                        }
+                                        launch(Dispatchers.Main) {
+                                            val verifiedSubject = "✓ ${binding.subject.text}"
+                                            binding.subject.text = verifiedSubject
+                                        }
+                                    }
                                     Log.d(LOGGING_TAG, "was encrypted?: ${result.isEncrypted}")
                                 } catch (e: MissingDecryptionMethodException) {
                                     binding.wrappedBody.text = getString(R.string.wrong_encrypt)
