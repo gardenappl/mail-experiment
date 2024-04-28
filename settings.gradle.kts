@@ -7,3 +7,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Mail"
 include(":app")
+include(":jmap-jakarta")

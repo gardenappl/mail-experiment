@@ -28,6 +28,7 @@ class LoginActivity : AppCompatActivity() {
         viewPager = findViewById(R.id.pager)
         val pagerAdapter = ScreenSlidePagerAdapter(this)
         viewPager.adapter = pagerAdapter
+        Log.d(LOGGING_TAG, "Hello")
     }
 
     override fun onBackPressed() {

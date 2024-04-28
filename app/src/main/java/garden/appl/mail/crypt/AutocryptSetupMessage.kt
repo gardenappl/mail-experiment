@@ -4,8 +4,8 @@ import android.content.Context
 import android.text.Html
 import android.text.TextUtils
 import android.util.Log
-import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.R
+import garden.appl.mail.MailTypeConverters
 import garden.appl.mail.mail.MailAccount
 import garden.appl.mail.mail.MailMessage
 import jakarta.mail.FetchProfile

@@ -11,14 +11,13 @@ import jakarta.mail.Folder
 import jakarta.mail.Message
 import jakarta.mail.MessagingException
 import jakarta.mail.Session
+import jakarta.mail.Store
 import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.bouncycastle.openpgp.PGPPublicKeyRing
 import org.bouncycastle.openpgp.PGPSecretKeyRing
-import org.eclipse.angus.mail.iap.CommandFailedException
-import org.eclipse.angus.mail.imap.IMAPStore
 import org.pgpainless.PGPainless
 import java.lang.Exception
 import java.lang.StringBuilder
@@ -131,14 +130,14 @@ data class MailAccount(
         }
     }
 
-    suspend fun connectToStore(): IMAPStore {
+    suspend fun connectToStore(): Store {
         val props = Properties()
         props["mail.imaps.host"] = imapAddress
         props["mail.imaps.port"] = imapPort
 
         val session = Session.getInstance(props)
         return withContext(Dispatchers.IO) {
-            val store = session.getStore("imaps") as IMAPStore
+            val store = session.getStore("imaps")
             store.connect(originalAddress, password)
             return@withContext store
         }

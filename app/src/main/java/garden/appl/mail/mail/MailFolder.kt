@@ -8,11 +8,11 @@ import androidx.room.PrimaryKey
 import garden.appl.mail.MailDatabase
 import garden.appl.mail.MailTypeConverters
 import jakarta.mail.Folder
+import jakarta.mail.Store
 import jakarta.mail.internet.MimeMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.eclipse.angus.mail.iap.CommandFailedException
-import org.eclipse.angus.mail.imap.IMAPStore
 
 @Entity(tableName = MailFolder.TABLE_NAME)
 data class MailFolder(
@@ -46,7 +46,7 @@ data class MailFolder(
         const val IS_DIRECTORY = "is_directory"
     }
 
-    suspend fun refreshDatabaseMessages(context: Context, store: IMAPStore) {
+    suspend fun refreshDatabaseMessages(context: Context, store: Store) {
         val db = MailDatabase.getDatabase(context).messageDao
 
         withContext(Dispatchers.IO) {
@@ -70,7 +70,7 @@ data class MailFolder(
         }
     }
 
-    suspend fun syncFoldersRecursive(context: Context, store: IMAPStore) {
+    suspend fun syncFoldersRecursive(context: Context, store: Store) {
         val db = MailDatabase.getDatabase(context)
         val folder = store.getFolder(fullName)
 

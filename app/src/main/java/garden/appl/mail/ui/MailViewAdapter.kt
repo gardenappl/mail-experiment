@@ -17,8 +17,6 @@ import androidx.recyclerview.widget.RecyclerView
 import garden.appl.mail.R
 import garden.appl.mail.databinding.ViewInboxMsgBinding
 import garden.appl.mail.mail.MailMessage
-import jakarta.mail.Session
-import kotlinx.coroutines.launch
 
 class MailViewAdapter internal constructor(
     private val activity: Activity
@@ -55,7 +53,8 @@ class MailViewAdapter internal constructor(
         var colorSecondary = com.google.android.material.R.color.m3_default_color_secondary_text
         var colorPrimary = R.color.colorForeground
         var colorBackground = R.color.white
-        if (message.contentType.startsWith("multipart/encrypted", ignoreCase = true)) {
+        if (message.subject == context.getString(R.string.autocrypt_setup_subject) ||
+            message.contentType.startsWith("multipart/encrypted", ignoreCase = true)) {
             colorSecondary = R.color.white
             colorPrimary = R.color.white
             colorBackground = R.color.teal_700
