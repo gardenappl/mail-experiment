@@ -19,6 +19,7 @@ import jakarta.mail.search.SearchTerm
 import org.bouncycastle.openpgp.PGPSecretKeyRing
 import org.bouncycastle.util.io.Streams
 import org.eclipse.angus.mail.imap.SortTerm
+import org.eclipse.angus.mail.util.BASE64DecoderStream
 import org.pgpainless.PGPainless
 import org.pgpainless.decryption_verification.ConsumerOptions
 import org.pgpainless.encryption_signing.EncryptionOptions
@@ -44,7 +45,10 @@ object AutocryptSetupMessage {
                     MailTypeConverters.toDatabase(message as MimeMessage)
                 }
 
-                return messages.maxBy(MailMessage::effectiveDate)
+                if (messages.isEmpty())
+                    return null
+                else
+                    return messages.maxBy(MailMessage::effectiveDate)
             }
         }
     }
@@ -56,12 +60,33 @@ object AutocryptSetupMessage {
         val multipart = message.content as MimeMultipart
 
         for (i in 0 until multipart.count) {
-            val part = multipart.getBodyPart(i)
+            var part = multipart.getBodyPart(i)
+            Log.d(LOGGING_TAG, "Part type: ${part.contentType}")
+            if (part.isMimeType("multipart/*")) {
+                Log.d(LOGGING_TAG, "Part type mixed!")
+                val subMultipart = part.content as MimeMultipart
+                for (i in 0 until subMultipart.count) {
+                    val subPart = subMultipart.getBodyPart(i)
+                    Log.d(LOGGING_TAG, "Sub part type: ${subPart.contentType}")
+                    if (subPart.isMimeType("application/autocrypt-setup")) {
+                        part = subPart
+                        Log.d(LOGGING_TAG, "found part!")
+                        break
+                    }
+                }
+            }
             if (!part.isMimeType("application/autocrypt-setup"))
                 continue
 
             val sb = StringBuilder()
-            val scanner = Scanner(part.content as ByteArrayInputStream)
+            val inputStream = if (part.content is ByteArrayInputStream) {
+                Log.d(LOGGING_TAG, "BAI stream")
+                part.content as ByteArrayInputStream
+            } else {
+                Log.d(LOGGING_TAG, "Base64 stream")
+                part.content as BASE64DecoderStream
+            }
+            val scanner = Scanner(inputStream)
             var isPGPMessage = false
             while (scanner.hasNextLine()) {
                 val line = scanner.nextLine()
