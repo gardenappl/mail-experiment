@@ -6,7 +6,7 @@ import jakarta.mail.Store
 import jakarta.mail.URLName
 import org.eclipse.angus.mail.imap.IMAPStore
 
-class JMAPStore(session: Session?, urlName: URLName) : Store(session, urlName) {
+class JMAPStore(session: Session, urlName: URLName) : Store(session, urlName) {
     override fun getDefaultFolder(): Folder {
         TODO("Not yet implemented")
     }

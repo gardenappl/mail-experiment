@@ -5,9 +5,13 @@ import jakarta.mail.Folder
 import jakarta.mail.Message
 import jakarta.mail.Store
 
-class JMAPFolder(store: Store?) : Folder(store) {
+class JMAPFolder(store: Store) : Folder(store) {
     override fun close(expunge: Boolean) {
-        TODO("Not yet implemented")
+        // TODO: monitor using push notifications, disable them here
+    }
+
+    override fun open(mode: Int) {
+        // TODO: monitor using push notifications, enable them here
     }
 
     override fun getName(): String {
@@ -55,10 +59,6 @@ class JMAPFolder(store: Store?) : Folder(store) {
     }
 
     override fun renameTo(f: Folder?): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun open(mode: Int) {
         TODO("Not yet implemented")
     }
 
