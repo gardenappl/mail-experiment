@@ -1,15 +1,17 @@
 plugins {
     id("java-library")
-    id("org.jetbrains.kotlin.jvm")
-    kotlin("plugin.serialization") version "1.9.23"
+    kotlin("jvm")
+    kotlin("plugin.serialization") version Build.Versions.kotlin
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_7
-    targetCompatibility = JavaVersion.VERSION_1_7
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
+
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 

@@ -10,6 +10,6 @@ object Build {
 
     object Versions {
 //        const val gradle = "8.0.1"
-        const val kotlin = "1.8.21"
+        const val kotlin = "1.9.22"
     }
 }
