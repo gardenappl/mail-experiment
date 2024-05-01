@@ -1,6 +1,6 @@
-package garden.appl.jmapjakarta.impl
+package garden.appl.jmapjakarta
 
-internal object JMAPConstants {
+object JMAPConstants {
     const val CORE = "urn:ietf:params:jmap:core"
     const val MAIL = "urn:ietf:params:jmap:mail"
     const val SUBMISSION = "urn:ietf:params:jmap:submission"

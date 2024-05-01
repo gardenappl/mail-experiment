@@ -30,9 +30,9 @@ import org.bouncycastle.openpgp.PGPException
 import org.pgpainless.PGPainless
 import org.pgpainless.util.Passphrase
 
-private const val LOGGING_TAG = "LoginConfigFrag"
+private const val LOGGING_TAG = "ImapSmtpConfigFragment"
 
-class LoginConfigFragment : Fragment(), CoroutineScope by MainScope() {
+class ImapSmtpConfigFragment : Fragment(), CoroutineScope by MainScope() {
     private lateinit var binding: FragmentLoginConfigBinding
 
     override fun onCreateView(
@@ -112,12 +112,6 @@ class LoginConfigFragment : Fragment(), CoroutineScope by MainScope() {
                         setView(passwordView.root)
                         setPositiveButton(android.R.string.ok) { _, _ ->
                             try {
-//                                val sb = StringBuilder()
-//                                for (i in pinInputs.indices) {
-//                                    sb.append(pinInputs[i].text.toString().padStart(4, '0'))
-//                                    if (i < pinInputs.size - 1)
-//                                        sb.append('-')
-//                                }
                                 val passChars = CharArray(44) { i ->
                                     when {
                                         i % 5 == 4 -> '-'

@@ -1,18 +1,13 @@
 package garden.appl.mail.ui
 
 import android.os.Bundle
-import android.os.PersistableBundle
 import android.util.Log
-import android.util.Patterns
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
-import garden.appl.mail.MailApp
 import garden.appl.mail.R
-import garden.appl.mail.mail.MailAccount
 
 private const val LOGGING_TAG = "LoginActivity"
 
@@ -39,7 +34,7 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private inner class ScreenSlidePagerAdapter(fa: FragmentActivity) : FragmentStateAdapter(fa) {
-        private val fragments = arrayOf(LoginFragment::class.java, LoginConfigFragment::class.java)
+        private val fragments = arrayOf(LoginFragment::class.java, ImapSmtpConfigFragment::class.java)
 
         override fun getItemCount(): Int = fragments.size
 

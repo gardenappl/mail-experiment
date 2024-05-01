@@ -1,11 +1,11 @@
-package garden.appl.jmapjakarta.impl.requests
+package garden.appl.jmapjakarta.requests
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
 @SerialName("Mailbox/changes")
-internal data class MailboxChanges(
+data class MailboxChanges(
     val accountId: String? = null,
     val sinceState: String? = null,
     val maxChanges: Int? = null

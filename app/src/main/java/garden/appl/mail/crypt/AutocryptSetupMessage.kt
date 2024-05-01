@@ -61,16 +61,12 @@ object AutocryptSetupMessage {
 
         for (i in 0 until multipart.count) {
             var part = multipart.getBodyPart(i)
-            Log.d(LOGGING_TAG, "Part type: ${part.contentType}")
             if (part.isMimeType("multipart/*")) {
-                Log.d(LOGGING_TAG, "Part type mixed!")
                 val subMultipart = part.content as MimeMultipart
                 for (i in 0 until subMultipart.count) {
                     val subPart = subMultipart.getBodyPart(i)
-                    Log.d(LOGGING_TAG, "Sub part type: ${subPart.contentType}")
                     if (subPart.isMimeType("application/autocrypt-setup")) {
                         part = subPart
-                        Log.d(LOGGING_TAG, "found part!")
                         break
                     }
                 }
