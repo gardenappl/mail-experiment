@@ -69,4 +69,5 @@ dependencies {
     implementation("org.eclipse.angus:angus-activation:2.0.1")
     implementation("jakarta.activation:jakarta.activation-api:2.1.2")
     implementation("org.pgpainless:pgpainless-core:1.6.1")
+    implementation(project(":jmap-jakarta"))
 }

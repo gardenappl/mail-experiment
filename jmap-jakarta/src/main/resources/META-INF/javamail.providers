@@ -1,0 +1,2 @@
+protocol=jmap; type=store; class=garden.appl.jmapjakarta.JMAPAPI;
+protocol=jmap; type=transport; class=garden.appl.jmapjakarta.JMAPAPI;

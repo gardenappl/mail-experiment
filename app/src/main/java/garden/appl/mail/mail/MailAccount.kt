@@ -31,15 +31,19 @@ private const val IMAP_ADDRESS = "imapAddr"
 private const val IMAP_PORT = "imapPort"
 private const val SMTP_ADDRESS = "smtpAddr"
 private const val SMTP_PORT = "smtpPort"
+private const val JMAP_AUTHENTICATION = "jmapAuthentication"
+private const val JMAP_SESSION_URL = "jmapSessionUrl"
 private const val KEYRING_ARMORED = "keyringArmored"
 
 data class MailAccount(
     val originalAddress: String,
     val password: String,
-    val imapAddress: String,
-    val imapPort: Int,
-    val smtpAddress: String,
-    val smtpPort: Int,
+    val imapAddress: String?,
+    val imapPort: Int?,
+    val smtpAddress: String?,
+    val smtpPort: Int?,
+    val jmapAuthentication: String?,
+    val jmapSessionUrl: String?,
     val keyRing: PGPSecretKeyRing
 ) {
     val canonAddress: String
@@ -51,8 +55,15 @@ data class MailAccount(
             _session
         } else {
             val props = Properties()
-            props["mail.smtps.host"] = smtpAddress
-            props["mail.smtps.port"] = smtpPort
+            if (jmapAuthentication != null) {
+                props["mail.store.protocol"] = "jmap"
+                props["mail.jmap.auth"] = jmapAuthentication
+                props["mail.jmap.session"] = jmapSessionUrl!!
+            } else {
+                props["mail.store.protocol"] = "smtps"
+                props["mail.smtps.host"] = smtpAddress!!
+                props["mail.smtps.port"] = smtpPort!!
+            }
 
             val session = Session.getInstance(props)
             session.debug = true
@@ -84,9 +95,9 @@ data class MailAccount(
             putString(CANONICAL_ADDRESS, canonAddress)
             putString(PASSWORD, password)
             putString(IMAP_ADDRESS, imapAddress)
-            putInt(IMAP_PORT, imapPort)
+            putInt(IMAP_PORT, imapPort!!)
             putString(SMTP_ADDRESS, smtpAddress)
-            putInt(SMTP_PORT, smtpPort)
+            putInt(SMTP_PORT, smtpPort!!)
             putString(KEYRING_ARMORED, PGPainless.asciiArmor(keyRing))
         }
     }
@@ -94,10 +105,12 @@ data class MailAccount(
     constructor(
         originalAddress: String,
         password: String,
-        imapAddress: String,
-        imapPort: Int,
-        smtpAddress: String,
-        smtpPort: Int
+        imapAddress: String? = null,
+        imapPort: Int? = null,
+        smtpAddress: String? = null,
+        smtpPort: Int? = null,
+        jmapAuthentication: String? = null,
+        jmapSessionUrl: String? = null,
     ) : this(
         originalAddress,
         password,
@@ -105,6 +118,8 @@ data class MailAccount(
         imapPort,
         smtpAddress,
         smtpPort,
+        jmapAuthentication,
+        jmapSessionUrl,
         PGPainless.generateKeyRing().modernKeyRing(originalAddress)
     )
 
@@ -116,7 +131,7 @@ data class MailAccount(
 
         withContext(Dispatchers.IO) {
             try {
-                session.getTransport("smtps").use { transport ->
+                session.transport.use { transport ->
                     transport.connect(originalAddress, password)
                     transport.sendMessage(msg, to)
                 }
@@ -132,12 +147,19 @@ data class MailAccount(
 
     suspend fun connectToStore(): Store {
         val props = Properties()
-        props["mail.imaps.host"] = imapAddress
-        props["mail.imaps.port"] = imapPort
+        if (imapAddress != null) {
+            props["mail.store.protocol"] = "imaps"
+            props["mail.imaps.host"] = imapAddress
+            props["mail.imaps.port"] = imapPort!!
+        } else {
+            props["mail.store.protocol"] = "jmap"
+            props["mail.jmap.auth"] = jmapAuthentication!!
+            props["mail.jmap.session"] = jmapSessionUrl!!
+        }
 
         val session = Session.getInstance(props)
         return withContext(Dispatchers.IO) {
-            val store = session.getStore("imaps")
+            val store = session.store
             store.connect(originalAddress, password)
             return@withContext store
         }
@@ -154,10 +176,12 @@ data class MailAccount(
             return MailAccount(
                 originalAddress = originalAddress,
                 password = prefs.getString(PASSWORD, "")!!,
-                imapAddress = prefs.getString(IMAP_ADDRESS, "")!!,
-                imapPort = prefs.getInt(IMAP_PORT, 0),
-                smtpAddress = prefs.getString(SMTP_ADDRESS, "")!!,
-                smtpPort = prefs.getInt(SMTP_PORT, 0),
+                imapAddress = prefs.getString(IMAP_ADDRESS, "").run { if (this == "") null else this },
+                imapPort = prefs.getInt(IMAP_PORT, 0).run { if (this == 0) null else this },
+                smtpAddress = prefs.getString(SMTP_ADDRESS, "").run { if (this == "") null else this },
+                smtpPort = prefs.getInt(SMTP_PORT, 0).run { if (this == 0) null else this },
+                jmapAuthentication = prefs.getString(JMAP_AUTHENTICATION, "").run { if (this == "") null else this },
+                jmapSessionUrl = prefs.getString(JMAP_SESSION_URL, "").run { if (this == "") null else this },
                 keyRing = PGPainless.readKeyRing().secretKeyRing(
                     prefs.getString(KEYRING_ARMORED, "")!!)!!
             )
